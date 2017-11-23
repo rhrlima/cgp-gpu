@@ -1,0 +1,28 @@
+nf = number of functions genes
+nc = number os column
+nr = number of rows
+ni = number of inputs (max arity)
+no = number of outputs
+a = arity
+l = levels-back
+
+3 parameters chosen by the user:
+nc, nr and l
+
+Ln = nc * nr = maximum number of computational nodes allowed
+
+l = number of column (to the left) the node can get its inputs from. Ex l=1 can only get its inputs from the immediate left column or primary input. If l = nc, this allows the node to connect to any nodeon their left.
+
+Allowed values for a function gene
+0 <= fi <= nf
+
+Allowed values for a gene Cij
+if j >= l
+	ni+(j-l) * nr <= Cij <= ni + j * nr
+	
+
+if j < l
+	0 <= Cij <= ni + j * nr
+
+Allowed values for Output connections
+	0 <= Oi < ni + Ln

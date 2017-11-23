@@ -1,9 +1,13 @@
 CC = gcc
 
-TARGET = cgp
+FLAGS = -lm
 
-all: $(TARGET).c
-	$(CC) $(TARGET).c -o $(TARGET)
+all:
+	$(CC) src/cgp.c src/main.c -o main $(FLAGS)
+
+run:
+	$(CC) src/cgp.c src/main.c -o main $(FLAGS)
+	./main
 
 clean:
-	rm -f $(TARGET)
+	rm -f main
