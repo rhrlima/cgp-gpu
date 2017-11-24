@@ -42,14 +42,22 @@ void calculateFitness(GENES *solution, int numInputs, int numOutputs, int numGen
 
 GENES mutation(GENES parent, CONFIG params);
 
+void execute(int popSize, int numGen, CONFIG params, DATASET dataset);
+
 
 /* UTILS */
 int randint(int min, int max);
 
 float randfloat(float min, float max);
 
+NODE copyNode(NODE source, int numInputs);
+
+GENES copySolution(GENES source, int numGenes, int numInputs, int numOutputs);
+
+void freeSolution(GENES solution, int numGenes);
+
+void freeDataset(DATASET dataset);
+
 void printSolution(GENES genes, int numGenes, int numInputs, int numOutputs);
 
-void freeSolution(GENES genes, int numGenes);
-
-void hardCodedSolution(GENES *genes, int numGenes, int numOutputs);
+GENES hardCodedSolution();

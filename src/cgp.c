@@ -47,6 +47,13 @@ DATASET loadDataset(char *fileName) {
 	return dset;
 }
 
+void freeDataset(DATASET dataset) {
+	for(int i=0; i<dataset.numCases; i++)
+		free(dataset.inputs[i]);
+	free(dataset.inputs);
+	free(dataset.outputs);
+}
+
 /* Prints the data of a solution [nodes] and [active nodes] */
 void printSolution(GENES solution, int numGenes, int numInputs, int numOutputs) {
 	for(int i=0; i<numGenes; i++) {
@@ -103,30 +110,33 @@ GENES createSolution(CONFIG params) {
 	return solution;
 }
 
-void hardCodedSolution(GENES *genes, int numGenes, int numOutputs) {
-	
-	genes -> nodes = (NODE *) malloc( (numGenes + numOutputs) * sizeof(NODE) );
-	genes -> toEvaluate = (int *) malloc( numGenes * sizeof(int));
+GENES hardCodedSolution() {
+	GENES solution;
+
+	solution.nodes = (NODE *) malloc( 10 * sizeof(NODE) );
+	solution.toEvaluate = (int *) malloc( 6 * sizeof(int));
+	solution.fitness = -1;
 
 	int vet[22] = {0, 0, 1, 1, 0, 0, 1, 3, 1, 2, 0, 1, 0, 4, 4, 2, 5, 4, 2, 5, 7, 3};
-
-	for(int i=0; i<numGenes; i++) {
+	for(int i=0; i<6; i++) {
 		NODE aux;
 		aux.links = (int *) malloc(2 * sizeof(int));
 		aux.func = vet[i*3];
 		aux.links[0] = vet[i*3+1];
 		aux.links[1] = vet[i*3+2];
 
-		genes -> nodes[i] = aux;
-		genes -> toEvaluate[i] = 0;
+		solution.nodes[i] = aux;
+		solution.toEvaluate[i] = 0;
 	}
-	
-	for(int i=0; i<numOutputs; i++) {
+
+	for(int i=0; i<4; i++) {
 		NODE aux;
-		aux.func = vet[numGenes*3+i];
+		aux.func = vet[6*3+i];
 		aux.links = NULL;
-		genes -> nodes[numGenes+i] = aux;
+		solution.nodes[6+i] = aux;
 	}
+
+	return solution;
 }
 
 void getActiveNodes(GENES *solution, int numInputs, int numOutputs, int numGenes) {
@@ -215,12 +225,35 @@ void calculateFitness(GENES *solution, int numInputs, int numOutputs, int numGen
 	solution -> fitness = fitness;
 }
 
-void freeSolution(GENES genes, int numGenes) {
-	for(int i=0; i<numGenes; i++) {
-		free(genes.nodes[i].links);
+NODE copyNode(NODE source, int numInputs) {
+	NODE copy;
+	copy.func = source.func;
+	copy.links = NULL;
+	if(source.links != NULL) {
+		copy.links = (int *) malloc(numInputs * sizeof(int));
+		for(int i=0; i<numInputs; i++) copy.links[i] = source.links[i];
 	}
-	free(genes.nodes);
-	free(genes.toEvaluate);
+	return copy;
+}
+
+GENES copySolution(GENES source, int numGenes, int numInputs, int numOutputs) {
+	GENES copy;
+	copy.nodes = (NODE *) malloc( (numGenes + numOutputs) * sizeof(NODE) );
+	copy.toEvaluate = (int *) malloc(numGenes * sizeof(int));
+	copy.fitness = source.fitness;
+	for(int i=0; i<numGenes+numOutputs; i++) {
+		copy.nodes[i] = copyNode(source.nodes[i], numInputs);
+		if(i < numGenes) copy.toEvaluate[i] = source.toEvaluate[i];
+	}
+	return copy;
+}
+
+void freeSolution(GENES solution, int numGenes) {
+	for(int i=0; i<numGenes; i++) {
+		free(solution.nodes[i].links);
+	}
+	free(solution.nodes);
+	free(solution.toEvaluate);
 }
 
 GENES * createPopulation(int popSize, CONFIG params) {
@@ -233,48 +266,87 @@ GENES * createPopulation(int popSize, CONFIG params) {
 
 GENES mutation(GENES parent, CONFIG params) {
 
-	GENES offspring;
-	offspring.nodes = (NODE *) malloc( (params.numGenes + params.numOutputs) * sizeof(NODE) );
-	offspring.toEvaluate = (int *) malloc( params.numGenes * sizeof(int));
+	int numInputs 	= params.numInputs;
+	int numOutputs 	= params.numOutputs;
+	int numGenes 	= params.numGenes;
 
-	int rand1 = randint(0, params.numGenes + params.numOutputs);
+	GENES offspring = copySolution(parent, numGenes, numInputs, numOutputs);
 
-	for(int i=0; i<params.numGenes+params.numOutputs; i++) {
-		offspring.nodes[i] = parent.nodes[i];
-		if(i < params.numGenes)
-			offspring.toEvaluate[i] = 0;
-	}
+	int rand1 = randint(0, numGenes + numOutputs);
 
-	if (rand1 < params.numGenes) {
-		int rand2 = randint(0, params.numInputs + 1);
+	if (rand1 < numGenes) {
+		int rand2 = randint(0, numInputs + 1);
 		if (rand2 == 0) {
 			int old = offspring.nodes[rand1].func;
 			int new = randint(0, params.numFunctions);
 			offspring.nodes[rand1].func = new;
-			printf("Old: %d New: %d\n", old, new);
+			//printf("Old: %d New: %d\n", old, new);
+
 		} else {
 			int col = rand1 / params.numRows;
-			int min = params.numInputs + (col - params.levelsBack) * params.numRows;
-			int max = params.numInputs + col * params.numRows;
+			int min = numInputs + (col - params.levelsBack) * params.numRows;
+			int max = numInputs + col * params.numRows;
 
 			int old = offspring.nodes[rand1].links[rand2];
 			int new = (col >= params.levelsBack) ? randint(min, max) : randint(0, max);
 			offspring.nodes[rand1].links[rand2] = new;
-			printf("Old: %d New: %d\n", old, new);
+			//printf("Old: %d New: %d\n", old, new);
+
 		}
 	} else {
 		int old = offspring.nodes[rand1].func;
-		int new = randint(0, params.numInputs + params.numGenes);
+		int new = randint(0, numInputs + numGenes);
 		offspring.nodes[rand1].func = new;
-		printf("Old: %d New: %d\n", old, new);
+		//printf("Old: %d New: %d\n", old, new);
+
 	}
 	return offspring;
 }
 
-void execute(CONFIG params) {
+void execute(int popSize, int numGen, CONFIG params, DATASET dataset) {
 
-	GENES *population;
+	GENES *population, best;
 
+	double mtr = 0.5;
+
+	int numInputs 	= params.numInputs;
+	int numOutputs 	= params.numOutputs;
+	int numGenes 	= params.numGenes;
+
+	population = createPopulation(popSize, params);
+
+	best = copySolution(population[0], numGenes, numInputs, numOutputs);
+	calculateFitness(&best, numInputs, numOutputs, numGenes, dataset);
+
+	for(int i=0; i<popSize; i++) {
+		calculateFitness(&population[i], numInputs, numOutputs, numGenes, dataset);
+		printSolution(population[i], 6, 2, 4);
+		if (population[i].fitness < best.fitness)
+			best = copySolution(population[i], numGenes, numInputs, numOutputs);
+	}
+	for(int i=0; i<numGen; i++) {
+		for(int j=0; j<popSize; j++) {
+			if (randfloat(0, 1) < mtr) {
+				//printf("Mutated\n");
+				GENES offspring = mutation(population[j], params);
+				calculateFitness(&offspring, numInputs, numOutputs, numGenes, dataset);
+				if (offspring.fitness < population[j].fitness)
+					population[j] = copySolution(offspring, numGenes, numInputs, numOutputs);
+			}
+		}
+		for(int j=0; j<popSize; j++) {
+			if (population[j].fitness < best.fitness)
+				best = copySolution(population[j], numGenes, numInputs, numOutputs);
+		}
+		//printf("Gen: % 4d | Best: % 4.2f\n", i, best.fitness);
+	
+	}
+
+	for(int i=0; i<popSize; i++) {
+		freeSolution(population[i], numGenes);
+	}
+
+	printSolution(best, 6, 2, 4);
 }
 
 #endif
