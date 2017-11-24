@@ -8,7 +8,6 @@ typedef struct node {
 typedef struct genes {
 	struct node *nodes;
 	int *toEvaluate;
-	double *nodesOutput;
 	double fitness;
 } GENES;
 
@@ -23,14 +22,34 @@ typedef struct config {
 	int numGenes;
 } CONFIG;
 
-void hardCodedSolution(GENES *genes, int numGenes, int numOutputs);
+typedef struct dataset {
+	int numInputs;
+	int numOutputs;
+	int numCases;
+	double **inputs;
+	double *outputs;
+} DATASET;
 
-double calculateFitness(GENES *genes, int numInputs, int numOutputs, int numGenes, double inputData[][2], double *outputData, int numCases);
 
-void mutation(GENES parent, GENES *offspring, CONFIG params);
+/* DATASET */
+DATASET loadDataset(char *fileName);
 
-void freeSolution(GENES genes, int numGenes);
+
+/* CGP */
+GENES * createPopulation(int popSize, CONFIG params);
+
+void calculateFitness(GENES *solution, int numInputs, int numOutputs, int numGenes, DATASET dataset);
+
+GENES mutation(GENES parent, CONFIG params);
+
+
+/* UTILS */
+int randint(int min, int max);
+
+float randfloat(float min, float max);
 
 void printSolution(GENES genes, int numGenes, int numInputs, int numOutputs);
 
-GENES * createPopulation(int popSize, CONFIG params);
+void freeSolution(GENES genes, int numGenes);
+
+void hardCodedSolution(GENES *genes, int numGenes, int numOutputs);

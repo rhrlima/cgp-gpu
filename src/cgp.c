@@ -25,74 +25,63 @@ float randfloat(float min, float max) {
 	return (rand() / (float) RAND_MAX) * (max - min) + min;
 }
 
+DATASET loadDataset(char *fileName) {
+	DATASET dset;
+
+	dset.numInputs = 2;
+	dset.numOutputs = 4;
+	dset.numCases = 2;
+
+	dset.inputs = (double **) malloc(dset.numCases * sizeof(double));
+	for(int i=0; i<dset.numInputs; i++) dset.inputs[i] = (double *) malloc(dset.numInputs * sizeof(double));
+	dset.outputs = (double *) malloc(dset.numCases * sizeof(double));
+
+	dset.inputs[0][0] = 2;
+	dset.inputs[0][1] = 2;
+	dset.inputs[1][0] = 1;
+	dset.inputs[1][1] = 3;
+
+	dset.outputs[0] = 0;
+	dset.outputs[1] = -2;
+
+	return dset;
+}
+
 /* Prints the data of a solution [nodes] and [active nodes] */
-void printSolution(GENES genes, int numGenes, int numInputs, int numOutputs) {
+void printSolution(GENES solution, int numGenes, int numInputs, int numOutputs) {
 	for(int i=0; i<numGenes; i++) {
-		printf("%d ", genes.nodes[i].func);
-		for(int j=0; j<numInputs; j++) printf("%d ", genes.nodes[i].links[j]);
+		printf("%d ", solution.nodes[i].func);
+		for(int j=0; j<numInputs; j++) printf("%d ", solution.nodes[i].links[j]);
 	}
 	for(int i=0; i<numOutputs; i++) {
-		printf("%d ", genes.nodes[numGenes+i].func);
+		printf("%d ", solution.nodes[numGenes+i].func);
 	}
 	printf("| ");
 	for(int i=0; i<numGenes; i++) {
-		printf("%d ", genes.toEvaluate[i]);
+		printf("%d ", solution.toEvaluate[i]);
 	}
-	printf("\n");
+	printf("| % .2f\n", solution.fitness);
 }
 
-// void createNode(NODE *node, int index, int numRows, int levelsBack, int numFunctions, int numInputs) {
-
-// 	node -> func = randint(0, numFunctions);
-// 	node -> links = (int *) malloc(numInputs * sizeof(int));
-
-// 	int col = index / numRows;
-// 	int min = numInputs + (col - levelsBack) * numRows;
-// 	int max = numInputs + col * numRows;
-// 	for(int l=0; l<numInputs; l++) {
-// 		int value = (col >= levelsBack) ? randint(min, max) : randint(0, max);
-// 		node -> links[l] = value;
-// 	}
-// }
-
-NODE createNode(NODE *node, int index, int numRows, int levelsBack, int numFunctions, int numInputs) {
-
-	node -> func = randint(0, numFunctions);
-	node -> links = (int *) malloc(numInputs * sizeof(int));
-
+NODE createNode(int index, int numRows, int levelsBack, int numFunctions, int numInputs) {
+	NODE node;
+	node.func = randint(0, numFunctions);
+	node.links = (int *) malloc(numInputs * sizeof(int));
 	int col = index / numRows;
 	int min = numInputs + (col - levelsBack) * numRows;
 	int max = numInputs + col * numRows;
-	for(int l=0; l<numInputs; l++) {
-		int value = (col >= levelsBack) ? randint(min, max) : randint(0, max);
-		node -> links[l] = value;
+	for(int i=0; i<numInputs; i++) {
+		node.links[i] = (col >= levelsBack) ? randint(min, max) : randint(0, max);
 	}
+	return node;
 }
 
-void createOutputNode(NODE *node, int maxValue) {
-	node -> func = randint(0, maxValue);
-	node -> links = NULL;
+NODE createOutputNode(int maxValue) {
+	NODE node;
+	node.func = randint(0, maxValue);
+	node.links = NULL;
+	return node;
 }
-
-// void createSolution(GENES *genes, CONFIG params) {
-
-// 	genes -> nodes = (NODE *) malloc((params.numGenes + params.numOutputs) * sizeof(NODE));
-// 	genes -> toEvaluate = (int *) malloc( params.numGenes * sizeof(int));
-// 	genes -> nodesOutput = (double *) malloc(params.numOutputs * sizeof(double));
-
-// 	for(int i=0; i<params.numGenes; i++) {
-// 		NODE n;
-// 		createNode(&n, i, params.numRows, params.levelsBack, params.numFunctions, params.numInputs);
-// 		genes -> nodes[i] = n;
-// 		genes -> toEvaluate[i] = 0;
-// 	}
-// 	for(int i=0; i<params.numOutputs; i++) {
-// 		NODE n;
-// 		createOutputNode(&n, params.numInputs + params.numGenes );
-// 		genes -> nodes[params.numGenes + i] = n;
-// 		genes -> nodesOutput[i] = 0;
-// 	}
-// }
 
 GENES createSolution(CONFIG params) {
 	GENES solution;
@@ -102,19 +91,14 @@ GENES createSolution(CONFIG params) {
 
 	solution.nodes = (NODE *) malloc( (numGenes + numOutputs) * sizeof(NODE) );
 	solution.toEvaluate = (int *) malloc(numGenes * sizeof(int));
-	solution.nodesOutput = (double *) malloc(numOutputs * sizeof(double));
+	solution.fitness = -1;
 
 	for(int i=0; i<numGenes; i++) {
-		NODE n;
-		createNode(&n, i, params.numRows, params.levelsBack, params.numFunctions, params.numInputs);
-		solution.nodes[i] = n;
+		solution.nodes[i] = createNode(i, params.numRows, params.levelsBack, params.numFunctions, numInputs);
 		solution.toEvaluate[i] = 0;
 	}
 	for(int i=0; i<numOutputs; i++) {
-		NODE n;
-		createOutputNode(&n, numInputs + numGenes );
-		solution.nodes[numGenes + i] = n;
-		solution.nodesOutput[i] = 0;
+		solution.nodes[numGenes + i] = createOutputNode(numInputs + numGenes);
 	}
 	return solution;
 }
@@ -123,7 +107,6 @@ void hardCodedSolution(GENES *genes, int numGenes, int numOutputs) {
 	
 	genes -> nodes = (NODE *) malloc( (numGenes + numOutputs) * sizeof(NODE) );
 	genes -> toEvaluate = (int *) malloc( numGenes * sizeof(int));
-	genes -> nodesOutput = (double *) malloc(numOutputs * sizeof(double));
 
 	int vet[22] = {0, 0, 1, 1, 0, 0, 1, 3, 1, 2, 0, 1, 0, 4, 4, 2, 5, 4, 2, 5, 7, 3};
 
@@ -143,22 +126,21 @@ void hardCodedSolution(GENES *genes, int numGenes, int numOutputs) {
 		aux.func = vet[numGenes*3+i];
 		aux.links = NULL;
 		genes -> nodes[numGenes+i] = aux;
-		genes -> nodesOutput[i] = 0;
 	}
 }
 
-void getActiveNodes(GENES *genes, int numInputs, int numOutputs, int numGenes) {
+void getActiveNodes(GENES *solution, int numInputs, int numOutputs, int numGenes) {
 
 	for(int i=0; i<numOutputs; i++) {
-		if (genes -> nodes[ numGenes + i ].func >= numInputs)
-			genes -> toEvaluate[ genes -> nodes[ numGenes + i ].func - numInputs ] = 1;
+		if (solution -> nodes[ numGenes + i ].func >= numInputs)
+			solution -> toEvaluate[ solution -> nodes[ numGenes + i ].func - numInputs ] = 1;
 	}
 
 	for(int i=numGenes-1; i>=0; i--) {
-		if (genes -> toEvaluate[i]) {
+		if (solution -> toEvaluate[i]) {
 			for (int j=0; j<numInputs; j++) {
-				if (genes -> nodes[i].links[j] >= numInputs)
-					genes -> toEvaluate[ genes -> nodes[i].links[j] - numInputs ] = 1;
+				if (solution -> nodes[i].links[j] >= numInputs)
+					solution -> toEvaluate[ solution -> nodes[i].links[j] - numInputs ] = 1;
 			}
 		}
 	}
@@ -194,41 +176,43 @@ double executeNode(int func, double *inputs, int numInputs) {
 	return result;
 }
 
-void executeNodes(GENES *genes, int numGenes, int numInputs, int numOutputs, double *inputData) {
+double * executeNodes(GENES *solution, int numGenes, int numInputs, int numOutputs, double *inputData) {
 
-	double outputs[numInputs + numGenes];
+	double *outputs = (double *) malloc( (numInputs + numGenes) * sizeof(double) );
 	double inputs[numInputs];
 
 	for (int i=0; i<numInputs; i++) {
 		outputs[i] = inputData[i];
 	}
 	for (int i=0; i<numGenes; i++) {
-		if (genes -> toEvaluate[i]) {
+		if (solution -> toEvaluate[i]) {
 			for(int j=0; j<numInputs; j++) {
-				inputs[j] = outputs[ genes -> nodes[i].links[j] ];
+				inputs[j] = outputs[ solution -> nodes[i].links[j] ];
 			}
-			outputs[numInputs + i] = executeNode(genes -> nodes[i].func, inputs, numInputs);
+			outputs[numInputs + i] = executeNode(solution -> nodes[i].func, inputs, numInputs);
 		}
 	}
-	for(int i=0; i<numOutputs; i++) {
-		genes -> nodesOutput[i] = outputs[ genes -> nodes[ numGenes + i ].func ];
-	}
+	return outputs;
 }
 
-double calculateFitness(GENES *genes, int numInputs, int numOutputs, int numGenes, double inputData[][2], double *outputData, int numCases) {
-	double rss = 0.0;
+void calculateFitness(GENES *solution, int numInputs, int numOutputs, int numGenes, DATASET dataset) {
+	double fitness = 0.0;
 
-	getActiveNodes(genes, numInputs, numOutputs, numGenes);
+	int numCases = dataset.numCases;
+	double **inputData = dataset.inputs;
+	double *outputData = dataset.outputs;
+
+	getActiveNodes(solution, numInputs, numOutputs, numGenes);
 
 	for(int i=0; i<numCases; i++) {
-		executeNodes(genes, numGenes, numInputs, numOutputs, inputData[i]);
+		double *outputs = executeNodes(solution, numGenes, numInputs, numOutputs, inputData[i]);
 		double temp = 0.0;
 		for(int j=0; j<numOutputs; j++) {
-			temp += genes -> nodesOutput[j];
+			temp += outputs[ solution -> nodes[numGenes + j].func ];
 		}
-		rss += pow(temp - outputData[i], 2);
+		fitness += pow(temp - outputData[i], 2);
 	}
-	return rss;
+	solution -> fitness = fitness;
 }
 
 void freeSolution(GENES genes, int numGenes) {
@@ -237,57 +221,54 @@ void freeSolution(GENES genes, int numGenes) {
 	}
 	free(genes.nodes);
 	free(genes.toEvaluate);
-	free(genes.nodesOutput);
 }
 
 GENES * createPopulation(int popSize, CONFIG params) {
 	GENES *population = (GENES *) malloc(popSize * sizeof(GENES));
-
-	for(int i=0; i<popSize; i++)
+	for(int i=0; i<popSize; i++) {
 		population[i] = createSolution(params);
-
+	}
 	return population;
 }
 
-void mutation(GENES parent, GENES *offspring, CONFIG params) {
+GENES mutation(GENES parent, CONFIG params) {
 
-	offspring -> nodes = (NODE *) malloc( (params.numGenes + params.numOutputs) * sizeof(NODE) );
-	offspring -> toEvaluate = (int *) malloc( params.numGenes * sizeof(int));
-	offspring -> nodesOutput = (double *) malloc(params.numOutputs * sizeof(double));
+	GENES offspring;
+	offspring.nodes = (NODE *) malloc( (params.numGenes + params.numOutputs) * sizeof(NODE) );
+	offspring.toEvaluate = (int *) malloc( params.numGenes * sizeof(int));
 
 	int rand1 = randint(0, params.numGenes + params.numOutputs);
 
 	for(int i=0; i<params.numGenes+params.numOutputs; i++) {
-		offspring -> nodes[i] = parent.nodes[i];
+		offspring.nodes[i] = parent.nodes[i];
 		if(i < params.numGenes)
-			offspring -> toEvaluate[i] = 0;
-		else
-			offspring -> nodesOutput[i] = 0;
+			offspring.toEvaluate[i] = 0;
 	}
 
 	if (rand1 < params.numGenes) {
 		int rand2 = randint(0, params.numInputs + 1);
 		if (rand2 == 0) {
-			int old = offspring -> nodes[rand1].func;
+			int old = offspring.nodes[rand1].func;
 			int new = randint(0, params.numFunctions);
-			offspring -> nodes[rand1].func = new;
+			offspring.nodes[rand1].func = new;
 			printf("Old: %d New: %d\n", old, new);
 		} else {
 			int col = rand1 / params.numRows;
 			int min = params.numInputs + (col - params.levelsBack) * params.numRows;
 			int max = params.numInputs + col * params.numRows;
 
-			int old = offspring -> nodes[rand1].links[rand2];
+			int old = offspring.nodes[rand1].links[rand2];
 			int new = (col >= params.levelsBack) ? randint(min, max) : randint(0, max);
-			offspring -> nodes[rand1].links[rand2] = new;
+			offspring.nodes[rand1].links[rand2] = new;
 			printf("Old: %d New: %d\n", old, new);
 		}
 	} else {
-		int old = offspring -> nodes[rand1].func;
+		int old = offspring.nodes[rand1].func;
 		int new = randint(0, params.numInputs + params.numGenes);
-		offspring -> nodes[rand1].func = new;
+		offspring.nodes[rand1].func = new;
 		printf("Old: %d New: %d\n", old, new);
 	}
+	return offspring;
 }
 
 void execute(CONFIG params) {
