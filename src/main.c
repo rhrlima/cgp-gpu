@@ -7,8 +7,8 @@
 
 int main() {
 
-	//srand(time(NULL)); //No seed
-	srand(2);
+	srand(time(NULL)); //No seed
+	//srand(2);
 
 	CONFIG params;
 	params.numInputs = 2;
@@ -23,10 +23,10 @@ int main() {
 	//Y = X0+X1 + X0*X1 + -X0*(X1*X1) + 0
 	DATASET dset = loadDataset("oi");
 	
-	execute(10, 20, params, dset);
+	execute(5, 100, params, dset);
 
 	GENES G1 = hardCodedSolution();
-	printSolution(G1, 6, 2, 4);
+	//printSolution(G1, 6, 2, 4);
 
 	freeSolution(G1, 6);
 	freeDataset(dset);

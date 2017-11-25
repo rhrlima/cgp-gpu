@@ -305,9 +305,7 @@ GENES mutation(GENES parent, CONFIG params) {
 
 void execute(int popSize, int numGen, CONFIG params, DATASET dataset) {
 
-	GENES *population, best;
-
-	double mtr = 0.5;
+	GENES *population, best, aux;
 
 	int numInputs 	= params.numInputs;
 	int numOutputs 	= params.numOutputs;
@@ -321,31 +319,27 @@ void execute(int popSize, int numGen, CONFIG params, DATASET dataset) {
 	for(int i=0; i<popSize; i++) {
 		calculateFitness(&population[i], numInputs, numOutputs, numGenes, dataset);
 		printSolution(population[i], 6, 2, 4);
-		if (population[i].fitness < best.fitness)
+		if (population[i].fitness <= best.fitness)
 			best = copySolution(population[i], numGenes, numInputs, numOutputs);
 	}
+
 	for(int i=0; i<numGen; i++) {
-		for(int j=0; j<popSize; j++) {
-			if (randfloat(0, 1) < mtr) {
-				//printf("Mutated\n");
-				GENES offspring = mutation(population[j], params);
-				calculateFitness(&offspring, numInputs, numOutputs, numGenes, dataset);
-				if (offspring.fitness < population[j].fitness)
-					population[j] = copySolution(offspring, numGenes, numInputs, numOutputs);
+		for(int j=0; j<popSize; j++) {	
+			population[j] = mutation(best, params);
+			calculateFitness(&population[j], numInputs, numOutputs, numGenes, dataset);
+			if(population[j].fitness <= best.fitness) {
+				aux = copySolution(population[j], numGenes, numInputs, numOutputs);
 			}
 		}
-		for(int j=0; j<popSize; j++) {
-			if (population[j].fitness < best.fitness)
-				best = copySolution(population[j], numGenes, numInputs, numOutputs);
-		}
-		//printf("Gen: % 4d | Best: % 4.2f\n", i, best.fitness);
-	
+		best = copySolution(aux, numGenes, numInputs, numOutputs);
+		if(best.fitness == 0.0) break;
 	}
 
 	for(int i=0; i<popSize; i++) {
 		freeSolution(population[i], numGenes);
 	}
 
+	printf("Final Best:\n");
 	printSolution(best, 6, 2, 4);
 }
 
