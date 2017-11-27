@@ -56,6 +56,11 @@ struct chromosome *createChromosome(struct parameters *params);
 /* chromosome evaluation */
 void executeChromosome(struct chromosome *chromo, double *inputs);
 
+double calculateFitness(struct chromosome *chromo, struct dataset *data)
+
+/* dataset */
+struct dataset *loadDataset(char *fileName);
+
 
 /* utils */
 void printChromosome(struct chromosome *chromo);

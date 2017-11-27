@@ -232,12 +232,12 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 	int i, j;
 	double error = 0;
 
-	for(i = 0; i < data.numSamples; i++) {
+	for(i = 0; i < data->numSamples; i++) {
 
-		executeChromosome(chromo, data.inputs[i]);
+		executeChromosome(chromo, data->inputs[i]);
 
 		for(j = 0; j < chromo->numOutputs; j++) {
-			error += fabs(chromo->outputValues[j] - data.outputs[i][j]);
+			error += fabs(chromo->outputValues[j] - data->outputs[i][j]);
 		}
 
 	}
@@ -251,53 +251,47 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 
 
 struct dataset *loadDataset(char *fileName) {
+
 	FILE *file;
-	DATASET dset;
-	char line[100]; //line buffer
+	int i, j;
+	struct dataset *dset;
+	char buffer[100];
 
 	file = fopen(fileName, "r");
 	if (!file) {
 		printf("Erro ao tentar abrir arquivo: %s\n", fileName);
 	}
 
-	fgets(line, 100, file);
+	fgets(buffer, 100, file);
 	
-	//First line has always 3 values [numInputs, numOutputs, numCases]
-	dset.numInputs 	= atoi(strtok(line, ","));
-	dset.numOutputs = atoi(strtok(NULL, ","));
-	dset.numCases 	= atoi(strtok(NULL, ","));
+	dset = (struct dataset *)malloc(sizeof(struct dataset));
 
-	dset.inputs = (double **) malloc(dset.numCases * sizeof(double));
-	for(int i=0; i<dset.numCases; i++) dset.inputs[i] = (double *) malloc(dset.numInputs * sizeof(double));
+	dset->numInputs 	= atoi(strtok(buffer, ","));
+	dset->numOutputs 	= atoi(strtok(NULL, ","));
+	dset->numSamples 	= atoi(strtok(NULL, ","));
 
-	dset.outputs = (double **) malloc(dset.numCases * sizeof(double));
-	for(int i=0; i<dset.numCases; i++) dset.outputs[i] = (double *) malloc(dset.numOutputs * sizeof(double));
+	dset->inputs = (double **) malloc(dset->numSamples * sizeof(double));
+	for(i = 0; i < dset->numSamples; i++) dset->inputs[i] = (double *) malloc(dset->numInputs * sizeof(double));
 
-	for(int i=0; i<dset.numCases; i++) {
+	dset->outputs = (double **) malloc(dset->numSamples * sizeof(double));
+	for(i = 0; i < dset->numSamples; i++) dset->outputs[i] = (double *) malloc(dset->numOutputs * sizeof(double));
 
-		char *r = fgets(line, 256, file);
+	for(i = 0; i < dset->numSamples; i++) {
 
-		//FIXING NUM INPUTS AND OUTPUTS AS 1
-		r = strtok(line, ",");
-		dset.inputs[i][0] = atof(r);
+		fgets(buffer, 100, file);
 
-		r = strtok(NULL, ",");
-		dset.outputs[i][0] = atof(r);
-
-		//----
-
-		// dset.inputs[i][0] = atof(strtok(line, ","));
-		// printf("%d ", dset.inputs[i][0]);
-		// for(int j=1; j<dset.numInputs; j++) {
-		// 	dset.inputs[i][j] = atof(strtok(NULL, ","));
-		// 	printf("%d ", dset.inputs[i][j]);
-		// }
-		// printf("\n");
-		// for(int j=0; j<dset.numOutputs; j++) {
-		// 	dset.outputs[i][j] = atof(strtok(NULL, ","));
-		// 	printf("%d ", dset.outputs[i][j]);
-		// }
-		// printf("\n");
+		dset->inputs[i][0] = atof(strtok(buffer, ","));
+		printf("%6.2f ", dset->inputs[i][0]);
+		for(j = 1; j < dset->numInputs; j++) {
+			dset->inputs[i][j] = atof(strtok(NULL, ","));
+			printf("%6.2f ", dset->inputs[i][j]);
+		}
+		printf("= ");
+		for(int j=0; j<dset->numOutputs; j++) {
+			dset->outputs[i][j] = atof(strtok(NULL, ","));
+			printf("%6.2f ", dset->outputs[i][j]);
+		}
+		printf("\n");
 	}
 
 	return dset;

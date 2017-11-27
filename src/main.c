@@ -12,27 +12,26 @@ int main() {
 
 	srand(time(NULL));
 
-	//DATASET dset;
+	struct dataset *dset;
 	struct parameters *params;
 	struct chromosome *chromo;
 
-	//dset = loadDataset("datasets/symbolic2.data"); //(x*x) + (x+x) + (x-x)
+	//dset = loadDataset("datasets/symbolic.data");
+	dset = loadDataset("datasets/symbolic2.data");
+	//dset = loadDataset("datasets/symbolic3.data");
 
 	params = (struct parameters*)malloc(sizeof(struct parameters));
 
-	params->numInputs = 1;
-	params->numNodes = 6;
-	params->numOutputs = 1;
-	params->arity = 2;
-	params->numFunctions = 4;
-	//params.numCols = 3;
-	//params.numRows = 3;
-	//params.levelsBack = 9;
+	params->numInputs 		= 1;
+	params->numNodes 		= 6;
+	params->numOutputs 		= 1;
+	params->arity 			= 2;
+	params->numFunctions 	= 4;
 
 	double inputs[] = {1, 2, 3};
 	
 	chromo = createChromosome(params);
-	executeChromosome(chromo, inputs);
+	calculateFitness(chromo, dset);
 	printChromosome(chromo);
 
 	// calculateFitness(&G, params.numInputs, params.numOutputs, params.numGenes, dset);
