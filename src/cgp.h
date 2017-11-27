@@ -1,63 +1,61 @@
-extern int teste;
+struct node {
+	int function;
+	int *inputs;
+	int active;
+	double output;
+	int maxArity;
+	int actArity;
+};
 
-typedef struct node {
-	int func;
-	int *links;
-} NODE;
-
-typedef struct genes {
-	struct node *nodes;
-	int *toEvaluate;
+struct chromosome {
+	int numInputs;
+	int numOutputs;
+	int numNodes;
+	int numActiveNodes;
+	int arity;
+	struct node **nodes;
+	int *outputNodes;
+	int *activeNodes;
 	double fitness;
-} GENES;
+	double *outputValues;
+	double *nodeInputsHold;
+};
 
-typedef struct config {
+struct parameters {
+	int numInputs;		//Inputs for the dataset
+	int numNodes;		//Cols * Rows
+	int numOutputs;		//Outputs for the dataset
+	int arity;			//Max arity from functions (usually 2)
+	int numFunctions;	//Available functions
+	//int numCols;		//User defined number of columns
+	//int numRows;		//User defined number of rows
+	//int levelsBack;		//User defined back connections
+};
+
+struct dataset {
 	int numInputs;
 	int numOutputs;
-	int numFunctions;
-	char *functions;
-	int numCols;
-	int numRows;
-	int levelsBack;
-	int numGenes;
-} CONFIG;
-
-typedef struct dataset {
-	int numInputs;
-	int numOutputs;
-	int numCases;
+	int numSamples;
 	double **inputs;
-	double *outputs;
-} DATASET;
+	double **outputs;
+};
 
 
-/* DATASET */
-DATASET loadDataset(char *fileName);
+/* chromosome creation */
+struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions, int nodePosition);
+
+int getRandomNodeInput(int numChromoInputs, int numNodes, int nodePosition);
+
+int getRandomNodeOutput(int numInputs, int numNodes);
+
+void setChromosomeActiveNodes(struct chromosome *chromo);
+
+struct chromosome *createChromosome(struct parameters *params);
 
 
-/* CGP */
-GENES * createPopulation(int popSize, CONFIG params);
-
-void calculateFitness(GENES *solution, int numInputs, int numOutputs, int numGenes, DATASET dataset);
-
-GENES mutation(GENES parent, CONFIG params);
-
-void execute(int popSize, int numGen, CONFIG params, DATASET dataset);
+/* chromosome evaluation */
+void executeChromosome(struct chromosome *chromo, double *inputs);
 
 
-/* UTILS */
-int randint(int min, int max);
-
-float randfloat(float min, float max);
-
-NODE copyNode(NODE source, int numInputs);
-
-GENES copySolution(GENES source, int numGenes, int numInputs, int numOutputs);
-
-void freeSolution(GENES solution, int numGenes);
-
-void freeDataset(DATASET dataset);
-
-void printSolution(GENES genes, int numGenes, int numInputs, int numOutputs);
-
-GENES hardCodedSolution();
+/* utils */
+void printChromosome(struct chromosome *chromo);

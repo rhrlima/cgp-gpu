@@ -3,8 +3,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <math.h>
+#include <float.h>
 
 #include "cgp.h"
 
@@ -13,334 +15,318 @@
 #define MUL 2
 #define DIV 3
 
-/* Random int between [min, max] exclusive */
 int randint(int min, int max) {
 
 	return rand() % (max-min) + min;
 }
 
-/* Random float between [min, max] exclusive */
+
 float randfloat(float min, float max) {
 
 	return (rand() / (float) RAND_MAX) * (max - min) + min;
 }
 
-DATASET loadDataset(char *fileName) {
-	DATASET dset;
 
-	dset.numInputs = 2;
-	dset.numOutputs = 4;
-	dset.numCases = 2;
+struct chromosome *createChromosome(struct parameters *params) {
+
+	struct chromosome *chromo;
+	int i;
+
+	chromo = (struct chromosome*)malloc(sizeof(struct chromosome));
+
+	chromo->nodes = (struct node**)malloc(params->numNodes * sizeof(struct node*));
+
+	chromo->outputNodes = (int*)malloc(params->numOutputs * sizeof(int));
+
+	chromo->activeNodes = (int*)malloc(params->numNodes * sizeof(int));
+
+	chromo->outputValues = (double*)malloc(params->numOutputs * sizeof(double));
+
+	for (i = 0; i < params->numNodes; i++) {
+		chromo->nodes[i] = createNode(params->numInputs, params->numNodes, params->arity, params->numFunctions, i);
+	}
+
+	for (i = 0; i < params->numOutputs; i++) {
+		chromo->outputNodes[i] = getRandomNodeOutput(params->numInputs, params->numNodes);
+	}
+
+	chromo->numInputs = params->numInputs;
+	chromo->numNodes = params->numNodes;
+	chromo->numOutputs = params->numOutputs;
+	chromo->arity = params->arity;
+
+	/* set the number of active node to the number of nodes (all active) */
+	chromo->numActiveNodes = params->numNodes;
+
+	/* set the fitness to initial value */
+	chromo->fitness = -1;
+
+	/* set the active nodes in the newly generated chromosome */
+	setChromosomeActiveNodes(chromo);
+
+	/* used interally when executing chromosome */
+	chromo->nodeInputsHold = (double*)malloc(params->arity * sizeof(double));
+
+	return chromo;
+}
+
+
+struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions, int nodePosition) {
+
+	struct node *n;
+	int i;
+
+	/* allocate memory for node */
+	n = (struct node*)malloc(sizeof(struct node));
+
+	/* allocate memory for the node's inputs and connection weights */
+	n->inputs = (int*)malloc(arity * sizeof(int));
+
+	/* set the node's function */
+	n->function = randint(0, numFunctions);
+
+	/* set as active by default */
+	n->active = 1;
+
+	/* set the nodes inputs and connection weights */
+	for (i = 0; i < arity; i++) {
+		n->inputs[i] = getRandomNodeInput(numInputs, numNodes, nodePosition);
+	}
+
+	/* set the output of the node to zero*/
+	n->output = 0;
+
+	/* set the arity of the node */
+	n->maxArity = arity;
+	n->actArity = arity;
+
+	return n;
+}
+
+
+int getRandomNodeInput(int numChromoInputs, int numNodes, int nodePosition) {
+	/* pick any previous node including inputs */
+	return randint(0, numChromoInputs + nodePosition);
+}
+
+
+int getRandomNodeOutput(int numInputs, int numNodes) {
+
+	/* returns any previous node */
+	return randint(0, numInputs + numNodes);
+}
+
+
+void setChromosomeActiveNodes(struct chromosome *chromo) {
+
+	int i, j;
+
+	for(i = 0; i < chromo->numNodes; i++) {
+		chromo->activeNodes[i] = 0;
+	}
+
+	for(i = 0; i < chromo->numOutputs; i++) {
+		chromo -> activeNodes[ chromo->outputNodes[i] - chromo->numInputs ] = 1;
+	}
+
+	for(i = chromo->numNodes-1; i >= 0; i--) {
+
+		if (chromo->activeNodes[i]) {
+
+			for (j=0; j<chromo->arity; j++) {
+				if (chromo->nodes[i]->inputs[j] >= chromo->numInputs)
+					chromo->activeNodes[ chromo->nodes[i]->inputs[j] - chromo->numInputs ] = 1;
+			}
+		}
+	}
+}
+
+
+/* -------------------------------------------------- */
+
+
+void executeChromosome(struct chromosome *chromo, double *inputs) {
+
+	int i, j;
+
+	int nodeInputLocation;
+	int currentActiveNode;
+	int currentActiveNodeFuction;
+	int nodeArity;
+
+	int numInputs = chromo->numInputs;
+	int numNodes = chromo->numNodes;
+	int numOutputs = chromo->numOutputs;
+
+	/* error checking */
+	if (chromo == NULL) {
+		printf("Error: cannot execute uninitialised chromosome.\n Terminating CGP-Library.\n");
+		exit(0);
+	}
+
+	/* for all of the active nodes */
+	for (i = 0; i < numNodes; i++) {
+
+		if (chromo->activeNodes[i]) {
+
+			currentActiveNode = i;
+			nodeArity = chromo->nodes[currentActiveNode]->actArity;
+
+			for(j = 0; j < nodeArity; j++) {
+				
+				nodeInputLocation = chromo->nodes[currentActiveNode]->inputs[j];
+
+				/* verify if the input location is a node or real input */
+				if(nodeInputLocation < numInputs) {
+					chromo->nodeInputsHold[j] = inputs[nodeInputLocation];
+				}
+				else {
+					chromo->nodeInputsHold[j] = chromo->nodes[nodeInputLocation - numInputs]->output;
+				}
+			}
+
+			/* get the functionality of the active node under evaluation */
+			currentActiveNodeFuction = chromo->nodes[currentActiveNode]->function;
+
+			/* calculate the output of the active node under evaluation */
+			//melhorar depois
+			double output = 0.0;
+			switch(currentActiveNodeFuction) {
+				case ADD:
+					output = chromo->nodeInputsHold[0] + chromo->nodeInputsHold[1];
+					break;
+				case SUB:
+					output = chromo->nodeInputsHold[0] - chromo->nodeInputsHold[1];
+					break;
+				case MUL:
+					output = chromo->nodeInputsHold[0] * chromo->nodeInputsHold[1];
+					break;
+				case DIV:
+					output = chromo->nodeInputsHold[0] / chromo->nodeInputsHold[1];
+					break;
+			}
+
+			if (isnan(output) != 0) output = 0;
+			else if (isinf(output) != 0) output = (output > 0) ? DBL_MAX : DBL_MIN;
+
+			chromo->nodes[currentActiveNode]->output = output;
+		}
+	}
+
+	/* Set the chromosome outputs */
+	for (i = 0; i < numOutputs; i++) {
+
+		if (chromo->outputNodes[i] < numInputs) {
+			chromo->outputValues[i] = inputs[chromo->outputNodes[i]];
+		}
+		else {
+			chromo->outputValues[i] = chromo->nodes[chromo->outputNodes[i] - numInputs]->output;
+		}
+		printf("output: %d\n", chromo->outputValues[i]);
+	}
+}
+
+
+double calculateFitness(struct chromosome *chromo, struct dataset *data) {
+	
+	int i, j;
+	double error = 0;
+
+	for(i = 0; i < data.numSamples; i++) {
+
+		executeChromosome(chromo, data.inputs[i]);
+
+		for(j = 0; j < chromo->numOutputs; j++) {
+			error += fabs(chromo->outputValues[j] - data.outputs[i][j]);
+		}
+
+	}
+
+	chromo->fitness = error;
+	return error;
+}
+
+
+/* -------------------------------------------------- */
+
+
+struct dataset *loadDataset(char *fileName) {
+	FILE *file;
+	DATASET dset;
+	char line[100]; //line buffer
+
+	file = fopen(fileName, "r");
+	if (!file) {
+		printf("Erro ao tentar abrir arquivo: %s\n", fileName);
+	}
+
+	fgets(line, 100, file);
+	
+	//First line has always 3 values [numInputs, numOutputs, numCases]
+	dset.numInputs 	= atoi(strtok(line, ","));
+	dset.numOutputs = atoi(strtok(NULL, ","));
+	dset.numCases 	= atoi(strtok(NULL, ","));
 
 	dset.inputs = (double **) malloc(dset.numCases * sizeof(double));
-	for(int i=0; i<dset.numInputs; i++) dset.inputs[i] = (double *) malloc(dset.numInputs * sizeof(double));
-	dset.outputs = (double *) malloc(dset.numCases * sizeof(double));
+	for(int i=0; i<dset.numCases; i++) dset.inputs[i] = (double *) malloc(dset.numInputs * sizeof(double));
 
-	dset.inputs[0][0] = 2;
-	dset.inputs[0][1] = 2;
-	dset.inputs[1][0] = 1;
-	dset.inputs[1][1] = 3;
+	dset.outputs = (double **) malloc(dset.numCases * sizeof(double));
+	for(int i=0; i<dset.numCases; i++) dset.outputs[i] = (double *) malloc(dset.numOutputs * sizeof(double));
 
-	dset.outputs[0] = 0;
-	dset.outputs[1] = -2;
+	for(int i=0; i<dset.numCases; i++) {
+
+		char *r = fgets(line, 256, file);
+
+		//FIXING NUM INPUTS AND OUTPUTS AS 1
+		r = strtok(line, ",");
+		dset.inputs[i][0] = atof(r);
+
+		r = strtok(NULL, ",");
+		dset.outputs[i][0] = atof(r);
+
+		//----
+
+		// dset.inputs[i][0] = atof(strtok(line, ","));
+		// printf("%d ", dset.inputs[i][0]);
+		// for(int j=1; j<dset.numInputs; j++) {
+		// 	dset.inputs[i][j] = atof(strtok(NULL, ","));
+		// 	printf("%d ", dset.inputs[i][j]);
+		// }
+		// printf("\n");
+		// for(int j=0; j<dset.numOutputs; j++) {
+		// 	dset.outputs[i][j] = atof(strtok(NULL, ","));
+		// 	printf("%d ", dset.outputs[i][j]);
+		// }
+		// printf("\n");
+	}
 
 	return dset;
 }
 
-void freeDataset(DATASET dataset) {
-	for(int i=0; i<dataset.numCases; i++)
-		free(dataset.inputs[i]);
-	free(dataset.inputs);
-	free(dataset.outputs);
-}
 
-/* Prints the data of a solution [nodes] and [active nodes] */
-void printSolution(GENES solution, int numGenes, int numInputs, int numOutputs) {
-	for(int i=0; i<numGenes; i++) {
-		printf("%d ", solution.nodes[i].func);
-		for(int j=0; j<numInputs; j++) printf("%d ", solution.nodes[i].links[j]);
-	}
-	for(int i=0; i<numOutputs; i++) {
-		printf("%d ", solution.nodes[numGenes+i].func);
+void printChromosome(struct chromosome *chromo) {
+	int i, j;
+
+	for(i = 0; i < chromo->numNodes; i++) {
+
+		printf("%d ", chromo->nodes[i]->function);
+
+		for(j = 0; j < chromo->arity; j++) {
+
+			printf("%d ", chromo->nodes[i]->inputs[j]);
+		}
 	}
 	printf("| ");
-	for(int i=0; i<numGenes; i++) {
-		printf("%d ", solution.toEvaluate[i]);
+	for(i = 0; i < chromo->numOutputs; i++) {
+
+		printf("%d ", chromo->outputNodes[i]);
 	}
-	printf("| % .2f\n", solution.fitness);
-}
+	printf("| ");
+	for(i = 0; i < chromo->numNodes; i++){
 
-NODE createNode(int index, int numRows, int levelsBack, int numFunctions, int numInputs) {
-	NODE node;
-	node.func = randint(0, numFunctions);
-	node.links = (int *) malloc(numInputs * sizeof(int));
-	int col = index / numRows;
-	int min = numInputs + (col - levelsBack) * numRows;
-	int max = numInputs + col * numRows;
-	for(int i=0; i<numInputs; i++) {
-		node.links[i] = (col >= levelsBack) ? randint(min, max) : randint(0, max);
+		printf("%d ", chromo->activeNodes[i]);
 	}
-	return node;
-}
-
-NODE createOutputNode(int maxValue) {
-	NODE node;
-	node.func = randint(0, maxValue);
-	node.links = NULL;
-	return node;
-}
-
-GENES createSolution(CONFIG params) {
-	GENES solution;
-	int numGenes = params.numGenes;
-	int numInputs = params.numInputs;
-	int numOutputs = params.numOutputs;
-
-	solution.nodes = (NODE *) malloc( (numGenes + numOutputs) * sizeof(NODE) );
-	solution.toEvaluate = (int *) malloc(numGenes * sizeof(int));
-	solution.fitness = -1;
-
-	for(int i=0; i<numGenes; i++) {
-		solution.nodes[i] = createNode(i, params.numRows, params.levelsBack, params.numFunctions, numInputs);
-		solution.toEvaluate[i] = 0;
-	}
-	for(int i=0; i<numOutputs; i++) {
-		solution.nodes[numGenes + i] = createOutputNode(numInputs + numGenes);
-	}
-	return solution;
-}
-
-GENES hardCodedSolution() {
-	GENES solution;
-
-	solution.nodes = (NODE *) malloc( 10 * sizeof(NODE) );
-	solution.toEvaluate = (int *) malloc( 6 * sizeof(int));
-	solution.fitness = -1;
-
-	int vet[22] = {0, 0, 1, 1, 0, 0, 1, 3, 1, 2, 0, 1, 0, 4, 4, 2, 5, 4, 2, 5, 7, 3};
-	for(int i=0; i<6; i++) {
-		NODE aux;
-		aux.links = (int *) malloc(2 * sizeof(int));
-		aux.func = vet[i*3];
-		aux.links[0] = vet[i*3+1];
-		aux.links[1] = vet[i*3+2];
-
-		solution.nodes[i] = aux;
-		solution.toEvaluate[i] = 0;
-	}
-
-	for(int i=0; i<4; i++) {
-		NODE aux;
-		aux.func = vet[6*3+i];
-		aux.links = NULL;
-		solution.nodes[6+i] = aux;
-	}
-
-	return solution;
-}
-
-void getActiveNodes(GENES *solution, int numInputs, int numOutputs, int numGenes) {
-
-	for(int i=0; i<numOutputs; i++) {
-		if (solution -> nodes[ numGenes + i ].func >= numInputs)
-			solution -> toEvaluate[ solution -> nodes[ numGenes + i ].func - numInputs ] = 1;
-	}
-
-	for(int i=numGenes-1; i>=0; i--) {
-		if (solution -> toEvaluate[i]) {
-			for (int j=0; j<numInputs; j++) {
-				if (solution -> nodes[i].links[j] >= numInputs)
-					solution -> toEvaluate[ solution -> nodes[i].links[j] - numInputs ] = 1;
-			}
-		}
-	}
-}
-
-double executeNode(int func, double *inputs, int numInputs) {
-	double result = inputs[0];
-	switch(func) {
-		case ADD:
-			for(int i=1; i<numInputs; i++) {
-				result += inputs[i];
-			}
-			break;
-		case SUB:
-			for(int i=1; i<numInputs; i++) {
-				result -= inputs[i];
-			}
-			break;
-		case MUL:
-			for(int i=1; i<numInputs; i++) {
-				result *= inputs[i];
-			}
-			break;
-		case DIV:
-			for(int i=1; i<numInputs; i++) {
-				result /= (inputs[i] > 0.0) ? inputs[i] : 1.0;
-			}
-			break;
-		default:
-			printf("Eu não devia ter sido printado!");
-			break;
-	}
-	return result;
-}
-
-double * executeNodes(GENES *solution, int numGenes, int numInputs, int numOutputs, double *inputData) {
-
-	double *outputs = (double *) malloc( (numInputs + numGenes) * sizeof(double) );
-	double inputs[numInputs];
-
-	for (int i=0; i<numInputs; i++) {
-		outputs[i] = inputData[i];
-	}
-	for (int i=0; i<numGenes; i++) {
-		if (solution -> toEvaluate[i]) {
-			for(int j=0; j<numInputs; j++) {
-				inputs[j] = outputs[ solution -> nodes[i].links[j] ];
-			}
-			outputs[numInputs + i] = executeNode(solution -> nodes[i].func, inputs, numInputs);
-		}
-	}
-	return outputs;
-}
-
-void calculateFitness(GENES *solution, int numInputs, int numOutputs, int numGenes, DATASET dataset) {
-	double fitness = 0.0;
-
-	int numCases = dataset.numCases;
-	double **inputData = dataset.inputs;
-	double *outputData = dataset.outputs;
-
-	getActiveNodes(solution, numInputs, numOutputs, numGenes);
-
-	for(int i=0; i<numCases; i++) {
-		double *outputs = executeNodes(solution, numGenes, numInputs, numOutputs, inputData[i]);
-		double temp = 0.0;
-		for(int j=0; j<numOutputs; j++) {
-			temp += outputs[ solution -> nodes[numGenes + j].func ];
-		}
-		fitness += pow(temp - outputData[i], 2);
-	}
-	solution -> fitness = fitness;
-}
-
-NODE copyNode(NODE source, int numInputs) {
-	NODE copy;
-	copy.func = source.func;
-	copy.links = NULL;
-	if(source.links != NULL) {
-		copy.links = (int *) malloc(numInputs * sizeof(int));
-		for(int i=0; i<numInputs; i++) copy.links[i] = source.links[i];
-	}
-	return copy;
-}
-
-GENES copySolution(GENES source, int numGenes, int numInputs, int numOutputs) {
-	GENES copy;
-	copy.nodes = (NODE *) malloc( (numGenes + numOutputs) * sizeof(NODE) );
-	copy.toEvaluate = (int *) malloc(numGenes * sizeof(int));
-	copy.fitness = source.fitness;
-	for(int i=0; i<numGenes+numOutputs; i++) {
-		copy.nodes[i] = copyNode(source.nodes[i], numInputs);
-		if(i < numGenes) copy.toEvaluate[i] = source.toEvaluate[i];
-	}
-	return copy;
-}
-
-void freeSolution(GENES solution, int numGenes) {
-	for(int i=0; i<numGenes; i++) {
-		free(solution.nodes[i].links);
-	}
-	free(solution.nodes);
-	free(solution.toEvaluate);
-}
-
-GENES * createPopulation(int popSize, CONFIG params) {
-	GENES *population = (GENES *) malloc(popSize * sizeof(GENES));
-	for(int i=0; i<popSize; i++) {
-		population[i] = createSolution(params);
-	}
-	return population;
-}
-
-GENES mutation(GENES parent, CONFIG params) {
-
-	int numInputs 	= params.numInputs;
-	int numOutputs 	= params.numOutputs;
-	int numGenes 	= params.numGenes;
-
-	GENES offspring = copySolution(parent, numGenes, numInputs, numOutputs);
-
-	int rand1 = randint(0, numGenes + numOutputs);
-
-	if (rand1 < numGenes) {
-		int rand2 = randint(0, numInputs + 1);
-		if (rand2 == 0) {
-			int old = offspring.nodes[rand1].func;
-			int new = randint(0, params.numFunctions);
-			offspring.nodes[rand1].func = new;
-			//printf("Old: %d New: %d\n", old, new);
-
-		} else {
-			int col = rand1 / params.numRows;
-			int min = numInputs + (col - params.levelsBack) * params.numRows;
-			int max = numInputs + col * params.numRows;
-
-			int old = offspring.nodes[rand1].links[rand2];
-			int new = (col >= params.levelsBack) ? randint(min, max) : randint(0, max);
-			offspring.nodes[rand1].links[rand2] = new;
-			//printf("Old: %d New: %d\n", old, new);
-
-		}
-	} else {
-		int old = offspring.nodes[rand1].func;
-		int new = randint(0, numInputs + numGenes);
-		offspring.nodes[rand1].func = new;
-		//printf("Old: %d New: %d\n", old, new);
-
-	}
-	return offspring;
-}
-
-void execute(int popSize, int numGen, CONFIG params, DATASET dataset) {
-
-	GENES *population, best, aux;
-
-	int numInputs 	= params.numInputs;
-	int numOutputs 	= params.numOutputs;
-	int numGenes 	= params.numGenes;
-
-	population = createPopulation(popSize, params);
-
-	best = copySolution(population[0], numGenes, numInputs, numOutputs);
-	calculateFitness(&best, numInputs, numOutputs, numGenes, dataset);
-
-	for(int i=0; i<popSize; i++) {
-		calculateFitness(&population[i], numInputs, numOutputs, numGenes, dataset);
-		printSolution(population[i], 6, 2, 4);
-		if (population[i].fitness <= best.fitness)
-			best = copySolution(population[i], numGenes, numInputs, numOutputs);
-	}
-
-	for(int i=0; i<numGen; i++) {
-		for(int j=0; j<popSize; j++) {	
-			population[j] = mutation(best, params);
-			calculateFitness(&population[j], numInputs, numOutputs, numGenes, dataset);
-			if(population[j].fitness <= best.fitness) {
-				aux = copySolution(population[j], numGenes, numInputs, numOutputs);
-			}
-		}
-		best = copySolution(aux, numGenes, numInputs, numOutputs);
-		if(best.fitness == 0.0) break;
-	}
-
-	for(int i=0; i<popSize; i++) {
-		freeSolution(population[i], numGenes);
-	}
-
-	printf("Final Best:\n");
-	printSolution(best, 6, 2, 4);
+	printf("| %.2f\n", chromo->fitness);
 }
 
 #endif
