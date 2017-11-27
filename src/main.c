@@ -1,69 +1,62 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <math.h>
 
 #include "cgp.h"
 
-//add modular functions
-//add support to different datasets
-
 int main() {
 
 	srand(time(NULL));
 
+	char dataset_file[100];
+
 	struct dataset *dset;
 	struct parameters *params;
-	struct chromosome *chromo;
+	struct chromosome *chromo, *chromo2;
 
-	//dset = loadDataset("datasets/symbolic.data");
-	dset = loadDataset("datasets/symbolic2.data");
-	//dset = loadDataset("datasets/symbolic3.data");
+	//strcpy(dataset_file, "datasets/symbolic.data");
+	strcpy(dataset_file, "datasets/symbolic2.data");
+	//strcpy(dataset_file, "datasets/symbolic3.data");
+
+	printf("Dataset: %s\n", dataset_file);
+	dset = loadDataset(dataset_file);
 
 	params = (struct parameters*)malloc(sizeof(struct parameters));
 
-	params->numInputs 		= 1;
-	params->numNodes 		= 6;
-	params->numOutputs 		= 1;
-	params->arity 			= 2;
-	params->numFunctions 	= 4;
-
-	double inputs[] = {1, 2, 3};
+	params->numInputs 	 = 1;
+	params->numNodes 	 = 6;
+	params->numOutputs 	 = 1;
+	params->arity 		 = 2;
+	params->numFunctions = 4;
 	
-	chromo = createChromosome(params);
+	// chromo = createChromosome(params);
+	// chromo2 = copyChromosome(chromo);
+
+	// calculateFitness(chromo, dset);
+	// calculateFitness(chromo2, dset);
+
+	// printChromosome(chromo);
+	// printChromosome(chromo2);
+
+	// singleMutation(params, chromo2);
+	// calculateFitness(chromo2, dset);
+
+	// printChromosome(chromo);
+	// printChromosome(chromo2);
+
+	//From array chromosome
+	int array[] = {0, 0, 0, 1, 0, 0, 1, 1, 1, 2, 0, 3, 0, 0, 0, 3, 4, 5, 5};
+	chromo = createChromosomeFromArray(params, array);
 	calculateFitness(chromo, dset);
 	printChromosome(chromo);
 
-	// calculateFitness(&G, params.numInputs, params.numOutputs, params.numGenes, dset);
-	// printSolution(G, params.numGenes, params.arity, params.numOutputs);
-	// freeSolution(G, params.numGenes);
-	// freeDataset(dset);
+	printf("Running CGP\n");
+	chromo = executeCGP(params, dset, 1000);
 
-	// dset = loadDataset("datasets/symbolic3.data"); //(x*x) + (x+x) + (x-x)
-	// params.numInputs = dset.numInputs; 
-	// params.numOutputs = dset.numOutputs;
-	// params.numFunctions = 4;
-	// params.arity = 2;
-	// params.numCols = 3;
-	// params.numRows = 2;
-	// params.levelsBack = 6;
-	// params.numGenes = params.numCols * params.numRows;
-	
-	// G = createSolution(params);
-	// calculateFitness(&G, params.numInputs, params.numOutputs, params.numGenes, dset);
-	// printSolution(G, params.numGenes, params.arity, params.numOutputs);
-	// freeSolution(G, params.numGenes);
-	// freeDataset(dset);
-
-	//execute(5, 1000, params, dset);
-
-	// int v1[] = {2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 5, 4, 0, 0, 0, 0, 0, 0, 8};
-	// GENES G1 = hardCodedSolution(v1, c * r, i, o);
-	// calculateFitness(&G1, i, o, c * r, dset);
-
-	// int v2[] = {0, 1, 0, 2, 0, 0, 1, 0, 1, 0, 3, 4, 0, 2, 4, 0, 2, 3, 0, 2, 5, 0, 4, 7, 3, 5, 5, 9};
-	// GENES G2 = hardCodedSolution(v2, c * r, i, o);
-	// calculateFitness(&G2, i, o, c * r, dset);
+	printf("Best solution found\n");
+	printChromosome(chromo);
 
 	return 0;
 }
