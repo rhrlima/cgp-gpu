@@ -378,7 +378,7 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 
 struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens) {
 
-	struct chromosome *chromo, *temp;
+	struct chromosome *chromo, *temp = NULL;
 	struct chromosome *best = NULL;
 
 	int i, j;
@@ -396,16 +396,14 @@ struct chromosome *executeCGP(struct parameters *params, struct dataset *data, i
 		}
 	}
 
-	printf("Best\n");
-	printChromosome(best);
-
 	for(i = 0; i < numGens; i++) {
-		for(j = 0; j < popSize - 1; j++) {
-			printf("%d %d\n", i, j);
+
+		for(j = 0; j < popSize-1; j++) {
 			/* copies the best to mutate */
 			//freeChromosome(chromo);
 			chromo = copyChromosome(best);
 			singleMutation(params, chromo);
+			calculateFitness(chromo, data);
 
 			/* if a mutated chromosome is better than best, save it */
 			if(best->fitness > chromo->fitness) {
@@ -415,11 +413,10 @@ struct chromosome *executeCGP(struct parameters *params, struct dataset *data, i
 		}
 
 		/* copy the best mutated chromosome found to best */
-		//freeChromosome(best);
-		best = copyChromosome(temp);
-
-		printf("Gen %d\n", i);
-		printChromosome(best);
+		if (temp != NULL) {
+			//freeChromosome(best);
+			best = copyChromosome(temp);
+		}
 	}
 
 	return best;
@@ -488,6 +485,22 @@ float randfloat(float min, float max) {
 }
 
 
+struct parameters *initialiseParameters(int numNodes, int arity, int numFunctions, struct dataset *data) {
+	
+	struct parameters *params;
+
+	params = (struct parameters*)malloc(sizeof(struct parameters));
+
+	params->numInputs = data->numInputs;
+	params->numOutputs = data->numOutputs;
+	params->numNodes = numNodes;
+	params->arity = arity;
+	params->numFunctions = numFunctions;
+
+	return params;
+}
+
+
 struct node *copyNode(struct node *node) {
 
 	struct node *copy;
@@ -528,6 +541,7 @@ struct chromosome *copyChromosome(struct chromosome *chromo) {
 	copy->numNodes = chromo->numNodes;
 	copy->numActiveNodes = chromo->numActiveNodes;
 	copy->arity = chromo->arity;
+	copy->fitness = chromo->fitness;
 
 	for(i = 0; i < chromo->numNodes; i++) {
 		copy->nodes[i] = copyNode(chromo->nodes[i]);
@@ -598,6 +612,15 @@ void printChromosome(struct chromosome *chromo) {
 		printf("%d ", chromo->activeNodes[i]);
 	}
 	printf("| %.2f\n", chromo->fitness);
+}
+
+
+void printParameters(struct parameters *params) {
+	printf("Inputs: %d\n", params->numInputs);
+	printf("Outputs: %d\n", params->numOutputs);
+	printf("Nodes: %d\n", params->numNodes);
+	printf("Max Arity: %d\n", params->arity);
+	printf("Functions: %d\n", params->numFunctions);
 }
 
 #endif

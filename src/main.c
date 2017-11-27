@@ -12,51 +12,35 @@ int main() {
 
 	char dataset_file[100];
 
-	struct dataset *dset;
+	struct dataset *data;
 	struct parameters *params;
 	struct chromosome *chromo, *chromo2;
 
-	//strcpy(dataset_file, "datasets/symbolic.data");
-	strcpy(dataset_file, "datasets/symbolic2.data");
-	//strcpy(dataset_file, "datasets/symbolic3.data");
+	//strcpy(dataset_file, "datasets/symbolic.data");	//?
+	strcpy(dataset_file, "datasets/symbolic2.data");	//x*x + x+x
+	//strcpy(dataset_file, "datasets/symbolic3.data");	//x0+x1 + x0*x1 + (-x0)*(x1*x1)
 
-	printf("Dataset: %s\n", dataset_file);
-	dset = loadDataset(dataset_file);
+	data = loadDataset(dataset_file);
 
-	params = (struct parameters*)malloc(sizeof(struct parameters));
+	params = initialiseParameters(9, 2, 4, data);
 
-	params->numInputs 	 = 1;
-	params->numNodes 	 = 6;
-	params->numOutputs 	 = 1;
-	params->arity 		 = 2;
-	params->numFunctions = 4;
-	
-	// chromo = createChromosome(params);
-	// chromo2 = copyChromosome(chromo);
+	printf("Dataset: '%s'\n", dataset_file);
 
-	// calculateFitness(chromo, dset);
-	// calculateFitness(chromo2, dset);
-
-	// printChromosome(chromo);
-	// printChromosome(chromo2);
-
-	// singleMutation(params, chromo2);
-	// calculateFitness(chromo2, dset);
-
-	// printChromosome(chromo);
-	// printChromosome(chromo2);
-
-	//From array chromosome
-	int array[] = {0, 0, 0, 1, 0, 0, 1, 1, 1, 2, 0, 3, 0, 0, 0, 3, 4, 5, 5};
-	chromo = createChromosomeFromArray(params, array);
-	calculateFitness(chromo, dset);
-	printChromosome(chromo);
+	printParameters(params);
 
 	printf("Running CGP\n");
-	chromo = executeCGP(params, dset, 1000);
+	chromo = executeCGP(params, data, 10000);
 
 	printf("Best solution found\n");
 	printChromosome(chromo);
 
+	int array[] = {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 2, 4, 1, 4, 1, 2, 2, 5, 3, 2, 3, 6};
+	chromo = createChromosomeFromArray(params, array);
+	calculateFitness(chromo, data);
+
+	printf("Best hardcoded\n");
+	printChromosome(chromo);
+
 	return 0;
 }
+//1 0 0 2 0 0 0 0 0 0 0 0 1 0 2 0 2 4 1 4 1 2 2 5 3 2 3 | 6

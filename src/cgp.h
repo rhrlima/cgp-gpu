@@ -23,8 +23,8 @@ struct chromosome {
 
 struct parameters {
 	int numInputs;		//Inputs for the dataset
-	int numNodes;		//Cols * Rows
 	int numOutputs;		//Outputs for the dataset
+	int numNodes;		//Cols * Rows
 	int arity;			//Max arity from functions (usually 2)
 	int numFunctions;	//Available functions
 };
@@ -77,6 +77,8 @@ int randint(int min, int max);
 
 float randfloat(float min, float max);
 
+struct parameters *initialiseParameters(int numNodes, int arity, int numFunctions, struct dataset *data);
+
 struct node *copyNode(struct node *node);
 
 struct chromosome *copyChromosome(struct chromosome *chromo);
@@ -86,3 +88,5 @@ void freeNode(struct node *node);
 void freeChromosome(struct chromosome *chromo);
 
 void printChromosome(struct chromosome *chromo);
+
+void printParameters(struct parameters *params);
