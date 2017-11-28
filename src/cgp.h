@@ -39,11 +39,16 @@ struct dataset {
 
 
 /* chromosome creation */
+struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions, int nodePosition);
+
+void copyNode(struct node *dst, struct node *src);
+
+void freeNode(struct node *node);
+
+
 struct chromosome *createChromosome(struct parameters *params);
 
 struct chromosome *createChromosomeFromArray(struct parameters *params, int *array);
-
-struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions, int nodePosition);
 
 int getRandomNodeInput(int numChromoInputs, int numNodes, int nodePosition);
 
@@ -51,9 +56,15 @@ int getRandomChromosomeOutput(int numInputs, int numNodes);
 
 void setChromosomeActiveNodes(struct chromosome *chromo);
 
+void copyChromosome(struct chromosome *dst, struct chromosome *src);
+
+void freeChromosome(struct chromosome *chromo);
+
+void printChromosome(struct chromosome *chromo);
+
 
 /* mutation */
-void singleMutation(struct parameters *params, struct chromosome *chromo);
+void singleMutation(struct chromosome *chromo, struct parameters *params);
 
 
 /* chromosome evaluation */
@@ -71,6 +82,8 @@ struct chromosome *executeCGP(struct parameters *params, struct dataset *data, i
 /* dataset */
 struct dataset *loadDataset(char *fileName);
 
+void freeDataset(struct dataset *data);
+
 
 /* utils */
 int randint(int min, int max);
@@ -78,15 +91,5 @@ int randint(int min, int max);
 float randfloat(float min, float max);
 
 struct parameters *initialiseParameters(int numNodes, int arity, int numFunctions, struct dataset *data);
-
-struct node *copyNode(struct node *node);
-
-struct chromosome *copyChromosome(struct chromosome *chromo);
-
-void freeNode(struct node *node);
-
-void freeChromosome(struct chromosome *chromo);
-
-void printChromosome(struct chromosome *chromo);
 
 void printParameters(struct parameters *params);

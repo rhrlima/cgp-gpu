@@ -15,7 +15,68 @@
 #define MUL 2
 #define DIV 3
 
-#define WARNINGS 0
+
+struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions, int nodePosition) {
+
+	struct node *n;
+	int i;
+
+	/* allocate memory for node */
+	n = (struct node*)malloc(sizeof(struct node));
+
+	/* allocate memory for the node's inputs and connection weights */
+	n->inputs = (int*)malloc(arity * sizeof(int));
+
+	/* set the node's function */
+	n->function = randint(0, numFunctions);
+
+	/* set as active by default */
+	n->active = 1;
+
+	/* set the nodes inputs and connection weights */
+	for (i = 0; i < arity; i++) {
+		n->inputs[i] = getRandomNodeInput(numInputs, numNodes, nodePosition);
+	}
+
+	/* set the output of the node to zero*/
+	n->output = 0;
+
+	/* set the arity of the node */
+	n->maxArity = arity;
+	n->actArity = arity;
+
+	return n;
+}
+
+
+void copyNode(struct node *dst, struct node *src) {
+
+	int i;
+
+	dst->function = src->function;
+
+	for(i = 0; i < src->maxArity; i++) {
+		dst->inputs[i] = src->inputs[i];
+	}
+
+	dst->active = src->active;
+	dst->output = src->output;
+	dst->maxArity = src->maxArity;
+	dst->actArity = src->actArity;
+}
+
+
+void freeNode(struct node *node) {
+
+	if (node == NULL) {
+		printf("Warning: freeing NULL node avoided\n");
+		return;
+	}
+
+	free(node->inputs);
+	free(node);
+}
+
 
 struct chromosome *createChromosome(struct parameters *params) {
 
@@ -78,6 +139,7 @@ struct chromosome *createChromosomeFromArray(struct parameters *params, int *arr
 
 	for (i = 0; i < params->numNodes; i++) {
 		chromo->nodes[i] = (struct node*)malloc(sizeof(struct node));
+
 		chromo->nodes[i]->inputs = (int*)malloc(params->arity * sizeof(int));
 
 		chromo->nodes[i]->function = array[i * (params->arity + 1)];
@@ -114,36 +176,50 @@ struct chromosome *createChromosomeFromArray(struct parameters *params, int *arr
 }
 
 
-struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions, int nodePosition) {
+void copyChromosome(struct chromosome *dst, struct chromosome *src) {
 
-	struct node *n;
 	int i;
 
-	/* allocate memory for node */
-	n = (struct node*)malloc(sizeof(struct node));
+	dst->numInputs = src->numInputs;
+	dst->numOutputs = src->numOutputs;
+	dst->numNodes = src->numNodes;
+	dst->numActiveNodes = src->numActiveNodes;
+	dst->arity = src->arity;
+	dst->fitness = src->fitness;
 
-	/* allocate memory for the node's inputs and connection weights */
-	n->inputs = (int*)malloc(arity * sizeof(int));
-
-	/* set the node's function */
-	n->function = randint(0, numFunctions);
-
-	/* set as active by default */
-	n->active = 1;
-
-	/* set the nodes inputs and connection weights */
-	for (i = 0; i < arity; i++) {
-		n->inputs[i] = getRandomNodeInput(numInputs, numNodes, nodePosition);
+	for(i = 0; i < src->numNodes; i++) {
+		copyNode(dst->nodes[i], src->nodes[i]);
+		dst->activeNodes[i] = src->activeNodes[i];
 	}
 
-	/* set the output of the node to zero*/
-	n->output = 0;
+	for(i = 0; i < src->numOutputs; i++) {
+		dst->outputNodes[i] = src->outputNodes[i];
+		dst->outputValues[i] = src->outputValues[i];
+	}
 
-	/* set the arity of the node */
-	n->maxArity = arity;
-	n->actArity = arity;
+	//inputHold não precisa?
+}
 
-	return n;
+
+void freeChromosome(struct chromosome *chromo) {
+
+	if (chromo == NULL) {
+		printf("Warning: Avoiding free NULL chromosome.\n");
+		return;
+	}
+
+	int i;
+
+	for(i = 0; i < chromo->numNodes; i++) {
+		freeNode(chromo->nodes[i]);
+	}
+
+	free(chromo->nodes);
+	free(chromo->outputNodes);
+	free(chromo->activeNodes);
+	free(chromo->outputValues);
+	free(chromo->nodeInputsHold);
+	free(chromo);
 }
 
 
@@ -164,33 +240,64 @@ void setChromosomeActiveNodes(struct chromosome *chromo) {
 
 	int i, j;
 
+	chromo->numActiveNodes = 0;
+
 	for(i = 0; i < chromo->numNodes; i++) {
 		chromo->activeNodes[i] = 0;
-		//printf("%d %d\n", i, chromo->activeNodes[i]);
 	}
 
 	for(i = 0; i < chromo->numOutputs; i++) {
-		chromo -> activeNodes[ chromo->outputNodes[i] - chromo->numInputs ] = 1;
-		//printf("%d %d\n", i, chromo -> activeNodes[ chromo->outputNodes[i] - chromo->numInputs ]);
+		if (chromo->outputNodes[i] >= chromo->numInputs)
+			chromo -> activeNodes[ chromo->outputNodes[i] - chromo->numInputs ] = 1;
 	}
 
 	for(i = chromo->numNodes-1; i >= 0; i--) {
-
 		if (chromo->activeNodes[i]) {
-			//printf("%d %d\n", i, chromo->activeNodes[i]);
 			for (j=0; j<chromo->arity; j++) {
 				if (chromo->nodes[i]->inputs[j] >= chromo->numInputs)
 					chromo->activeNodes[ chromo->nodes[i]->inputs[j] - chromo->numInputs ] = 1;
 			}
+			chromo->numActiveNodes++;
 		}
 	}
+}
+
+
+void printChromosome(struct chromosome *chromo) {
+	int i, j;
+
+	if (chromo == NULL) {
+		printf("Warning: Avoiding print NULL chromosome.\n");
+		return;
+	}
+
+	for(i = 0; i < chromo->numNodes; i++) {
+
+		printf("%d ", chromo->nodes[i]->function);
+
+		for(j = 0; j < chromo->arity; j++) {
+
+			printf("%d ", chromo->nodes[i]->inputs[j]);
+		}
+	}
+	printf("| ");
+	for(i = 0; i < chromo->numOutputs; i++) {
+
+		printf("%d ", chromo->outputNodes[i]);
+	}
+	printf("| ");
+	for(i = 0; i < chromo->numNodes; i++){
+
+		printf("%d ", chromo->activeNodes[i]);
+	}
+	printf("| %.2f\n", chromo->fitness);
 }
 
 
 /* -------------------------------------------------- */
 
 
-void singleMutation(struct parameters *params, struct chromosome *chromo) {
+void singleMutation(struct chromosome *chromo, struct parameters *params) {
 
 	int numFunctionGenes, numInputGenes, numOutputGenes;
 	int numGenes;
@@ -378,45 +485,45 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 
 struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens) {
 
-	struct chromosome *chromo, *temp = NULL;
-	struct chromosome *best = NULL;
+	struct chromosome *chromo, *best;
 
 	int i, j;
 	int popSize = 5;
 
-	/* creates popSize chromosome and stores the best one */
+	/* creates popSize chromosomes and stores the best one */
 	printf("Population\n");
-	for(i = 0; i < popSize; i++) {
+
+	best = createChromosome(params);
+	calculateFitness(best, data);
+
+	for(i = 0; i < popSize-1; i++) {
 		chromo = createChromosome(params);
 		calculateFitness(chromo, data);
-		if(best == NULL || best->fitness > chromo->fitness) {
-			//freeChromosome(best);
-			best = copyChromosome(chromo);
+		if(chromo->fitness < best->fitness) {
+			copyChromosome(best, chromo);
+		} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
+			copyChromosome(best, chromo);
 		}
+		/* if isn't the last iteration, free it */
+		if (i < popSize-2) freeChromosome(chromo);
 	}
 
 	for(i = 0; i < numGens; i++) {
-
 		for(j = 0; j < popSize-1; j++) {
 			/* copies the best to mutate */
-			//freeChromosome(chromo);
-			chromo = copyChromosome(best);
-			singleMutation(params, chromo);
+			copyChromosome(chromo, best);
+			/* applies the mutation */
+			singleMutation(chromo, params);
 			calculateFitness(chromo, data);
-
 			/* if a mutated chromosome is better than best, save it */
-			if(best->fitness > chromo->fitness) {
-				//freeChromosome(temp);
-				temp = copyChromosome(chromo);
+			if(chromo->fitness < best->fitness) {
+				copyChromosome(best, chromo);
+			} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
+				copyChromosome(best, chromo);
 			}
 		}
-
-		/* copy the best mutated chromosome found to best */
-		if (temp != NULL) {
-			//freeChromosome(best);
-			best = copyChromosome(temp);
-		}
 	}
+	freeChromosome(chromo);
 
 	return best;
 }
@@ -442,14 +549,14 @@ struct dataset *loadDataset(char *fileName) {
 	
 	dset = (struct dataset *)malloc(sizeof(struct dataset));
 
-	dset->numInputs 	= atoi(strtok(buffer, ","));
-	dset->numOutputs 	= atoi(strtok(NULL, ","));
-	dset->numSamples 	= atoi(strtok(NULL, ","));
+	dset->numInputs  = atoi(strtok(buffer, ","));
+	dset->numOutputs = atoi(strtok(NULL, ","));
+	dset->numSamples = atoi(strtok(NULL, ","));
 
-	dset->inputs = (double **) malloc(dset->numSamples * sizeof(double));
+	dset->inputs = (double **) malloc(dset->numSamples * sizeof(double*));
 	for(i = 0; i < dset->numSamples; i++) dset->inputs[i] = (double *) malloc(dset->numInputs * sizeof(double));
 
-	dset->outputs = (double **) malloc(dset->numSamples * sizeof(double));
+	dset->outputs = (double **) malloc(dset->numSamples * sizeof(double*));
 	for(i = 0; i < dset->numSamples; i++) dset->outputs[i] = (double *) malloc(dset->numOutputs * sizeof(double));
 
 	for(i = 0; i < dset->numSamples; i++) {
@@ -465,7 +572,21 @@ struct dataset *loadDataset(char *fileName) {
 		}
 	}
 
+	fclose(file);
+
 	return dset;
+}
+
+
+void freeDataset(struct dataset *data) {
+	int i, j;
+	for(i = 0; i < data->numSamples; i++) {
+		free(data->inputs[i]);
+		free(data->outputs[i]);
+	}
+	free(data->inputs);
+	free(data->outputs);
+	free(data);
 }
 
 
@@ -488,6 +609,11 @@ struct parameters *initialiseParameters(int numNodes, int arity, int numFunction
 	
 	struct parameters *params;
 
+	if (data == NULL) {
+		printf("Error: Dataset not initialised.\nExiting.\n");
+		exit(0);
+	}
+
 	params = (struct parameters*)malloc(sizeof(struct parameters));
 
 	params->numInputs = data->numInputs;
@@ -497,120 +623,6 @@ struct parameters *initialiseParameters(int numNodes, int arity, int numFunction
 	params->numFunctions = numFunctions;
 
 	return params;
-}
-
-
-struct node *copyNode(struct node *node) {
-
-	struct node *copy;
-	int i;
-
-	copy = (struct node*)malloc(sizeof(struct node));
-	copy->inputs = (int*)malloc(node->maxArity * sizeof(int));
-
-	copy->function = node->function;
-
-	for(i = 0; i < node->maxArity; i++) {
-		copy->inputs[i] = node->inputs[i];
-	}
-
-	copy->active = node->active;
-	copy->output = node->output;
-	copy->maxArity = node->maxArity;
-	copy->actArity = node->actArity;
-
-	return copy;
-}
-
-
-struct chromosome *copyChromosome(struct chromosome *chromo) {
-
-	struct chromosome *copy;
-	int i;
-
-	copy = (struct chromosome*)malloc(sizeof(struct chromosome));
-	copy->nodes = (struct node**)malloc(chromo->numNodes * sizeof(struct node*));
-	copy->outputNodes = (int*)malloc(chromo->numOutputs * sizeof(int));
-	copy->activeNodes = (int*)malloc(chromo->numNodes * sizeof(int));
-	copy->outputValues = (double*)malloc(chromo->numOutputs * sizeof(double));
-	copy->nodeInputsHold = (double*)malloc(chromo->arity * sizeof(double));
-
-	copy->numInputs = chromo->numInputs;
-	copy->numOutputs = chromo->numOutputs;
-	copy->numNodes = chromo->numNodes;
-	copy->numActiveNodes = chromo->numActiveNodes;
-	copy->arity = chromo->arity;
-	copy->fitness = chromo->fitness;
-
-	for(i = 0; i < chromo->numNodes; i++) {
-		copy->nodes[i] = copyNode(chromo->nodes[i]);
-		copy->activeNodes[i] = chromo->activeNodes[i];
-	}
-
-	for(i = 0; i < chromo->numOutputs; i++) {
-		copy->outputNodes[i] = chromo->outputNodes[i];
-		copy->outputValues[i] = chromo->outputValues[i];
-	}
-
-	//inputHold não precisa?
-
-	return copy;
-}
-
-
-void freeNode(struct node *node) {
-	if (WARNINGS && node == NULL) {
-		printf("Warning: freeing NULL node avoided\n");
-		return;
-	}
-	free(node->inputs);
-	free(node);
-}
-
-
-void freeChromosome(struct chromosome *chromo) {
-	if (WARNINGS && chromo == NULL) {
-		printf("Warning: freeing NULL chromosome avoided\n");
-		return;
-	}
-
-	int i;
-
-	for(i = 0; i < chromo->numNodes; i++) {
-		freeNode(chromo->nodes[i]);
-	}
-	free(chromo->nodes);
-	free(chromo->outputNodes);
-	free(chromo->activeNodes);
-	free(chromo->outputValues);
-	free(chromo->nodeInputsHold);
-	free(chromo);
-}
-
-
-void printChromosome(struct chromosome *chromo) {
-	int i, j;
-
-	for(i = 0; i < chromo->numNodes; i++) {
-
-		printf("%d ", chromo->nodes[i]->function);
-
-		for(j = 0; j < chromo->arity; j++) {
-
-			printf("%d ", chromo->nodes[i]->inputs[j]);
-		}
-	}
-	printf("| ");
-	for(i = 0; i < chromo->numOutputs; i++) {
-
-		printf("%d ", chromo->outputNodes[i]);
-	}
-	printf("| ");
-	for(i = 0; i < chromo->numNodes; i++){
-
-		printf("%d ", chromo->activeNodes[i]);
-	}
-	printf("| %.2f\n", chromo->fitness);
 }
 
 
