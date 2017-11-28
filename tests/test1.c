@@ -4,7 +4,7 @@
 #include <time.h>
 #include <math.h>
 
-#include "cgp.h"
+#include "../src/cgp.h"
 
 int main() {
 
