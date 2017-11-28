@@ -389,7 +389,6 @@ struct chromosome *executeCGP(struct parameters *params, struct dataset *data, i
 	for(i = 0; i < popSize; i++) {
 		chromo = createChromosome(params);
 		calculateFitness(chromo, data);
-		printChromosome(chromo);
 		if(best == NULL || best->fitness > chromo->fitness) {
 			//freeChromosome(best);
 			best = copyChromosome(chromo);
