@@ -1,4 +1,5 @@
 CC = gcc
+CUC = nvcc
 
 FLAGS = -lm
 
@@ -14,6 +15,9 @@ test: src/cgp.c src/cgp.h tests/test1.c tests/test2.c
 	$(CC) src/cgp.c tests/test2.c -o test2
 	./test1
 	./test2
+
+gpu:
+	$(CUC) cuda/cgp.cu cuda/main.cu -o gmain
 
 clean:
 	rm -f main
