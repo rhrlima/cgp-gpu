@@ -1,3 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <math.h>
+#include <float.h>
+
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+
+#include <thrust/reduce.h>
+#include <thrust/transform.h>
+
 struct node {
 	int function;
 	int *inputs;
@@ -73,8 +86,6 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data);
 
 
 /* evolutionary strategy */
-
-/* 4 + 1 Evolutionary Strategy */
 struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens);
 
 
@@ -95,12 +106,11 @@ void printParameters(struct parameters *params);
 
 
 /* ------------------------- */
-/* CUDA PART */
+/*         CUDA PART         */
 /* ------------------------- */
 
-__host__ void CUDAcreateArrayChromosome(thrust::host_vector<int> &array, struct parameters *params);
 
-__host__ void CUDAcreateArrayFromChromosome(struct chromosome chromo, int *array);
+__host__ void CUDAcreateArrayChromosome(thrust::host_vector<int> &array, struct parameters *params);
 
 __global__ void CUDAcalculateChromosomeOutputs(int *solution, double *inputs, double *outputs, int numSamples, int numInputs, int numNodes);
 

@@ -1,21 +1,6 @@
 #ifndef HEADER_CGP_
 #define HEADER_CGP_
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <math.h>
-#include <float.h>
-
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-
-#include <thrust/reduce.h>
-#include <thrust/transform.h>
-#include <thrust/execution_policy.h>
-#include <thrust/functional.h>
-
 #include "cgp.cuh"
 
 #define NTHREADS 1024
@@ -618,7 +603,7 @@ void printParameters(struct parameters *params) {
 
 
 /* ------------------------- */
-/* CUDA PART */
+/*         CUDA PART         */
 /* ------------------------- */
 
 
@@ -639,19 +624,6 @@ __host__ void CUDAcreateArrayChromosome(thrust::host_vector<int> &array, struct 
 	}
 	for(i = 0; i < params->numOutputs; i++) {
 		array[params->numNodes * (params->arity + 1) + i] = randint(0, params->numInputs + params->numNodes);
-	}
-}
-
-
-__host__ void CUDAcreateArrayFromChromosome(struct chromosome chromo, int *array) {
-	int i;
-	for(i = 0; i < chromo.numNodes; i++) {
-		array[i * (chromo.arity + 1)] = chromo.nodes[i]->function;
-		array[i * (chromo.arity + 1) + 1] = chromo.nodes[i]->inputs[0];
-		array[i * (chromo.arity + 1) + 2] = chromo.nodes[i]->inputs[1];
-	}
-	for(i = 0; i < chromo.numOutputs; i++) {
-		array[chromo.numNodes * (chromo.arity + 1) + i] = chromo.outputNodes[i];
 	}
 }
 
@@ -733,36 +705,33 @@ __host__ double CUDAcalculateFitness(thrust::host_vector<int> &h_solution, thrus
 __host__ void CUDAsingleMutation(thrust::host_vector<int> &solution, struct parameters *params) {
 	
 	int size = params->numNodes * (params->arity + 1) + params->numOutputs;
-	int geneToMutate = randint(0, size);
-	int nodeIndex = geneToMutate/(params->arity+1);
-	int subIndex = geneToMutate%(params->arity+1);
+	int geneToMutate, nodeIndex, subIndex, oldValue, newValue;
 
-	int oldValue, newValue;
-
-	// printf("%d %d %d\n", geneToMutate, nodeIndex, subIndex);
-
-	oldValue = solution[geneToMutate];
 	do {
+		/* picks a random gene to mutate */
+		geneToMutate = randint(0, size);
+
+		nodeIndex = geneToMutate/(params->arity+1);
+		subIndex = geneToMutate%(params->arity+1);
+
+		/*store the old value */
+		oldValue = solution[geneToMutate];
+
 		/* mutate normal node */
 		if (nodeIndex < params->numNodes) {
-			// printf("Normal node\n");
 			/* mutate function gene */
 			if (subIndex == 0) {
-				// printf("Function\n");
 				newValue = randint(0, params->numFunctions);
 			}
 			/* mutate input gene */
 			else {
-				// printf("Input\n");
 				newValue = getRandomNodeInput(params->numInputs, nodeIndex);
 			}
 		}
 		/* mutate output node */
 		else {
-			// printf("Output node\n");
 			newValue = getRandomChromosomeOutput(params->numInputs, params->numNodes);
 		}
-		// printf("Old: %d\nNew: %d\n", oldValue, newValue);
 	} while(oldValue == newValue);
 
 	solution[geneToMutate] = newValue;
@@ -771,38 +740,29 @@ __host__ void CUDAsingleMutation(thrust::host_vector<int> &solution, struct para
 
 __host__ int *CUDAexecuteCGP(struct parameters *params, struct dataset *data, int popSize, int numGens) {
 
-	int i, j;
+	int i, j, solSize; int *result;
+	double bestFit, tempFit;
 
-	int solSize = params->numNodes * (params->arity + 1) + params->numOutputs;
+	solSize = params->numNodes * (params->arity + 1) + params->numOutputs;
 
 	/* host arrays that handles solutions */
 	thrust::host_vector<int> best(solSize);
 	thrust::host_vector<int> temp(solSize);
-
-	double bestFit, tempFit;
 
 	/* device arrays for the data inputs and outputs */
 	thrust::device_vector<double> d_inputs(data->inputs, data->inputs + data->numSamples);
 	thrust::device_vector<double> d_outputs(data->outputs, data->outputs + data->numSamples);
 
 	/* creates popSize chromosomes and stores the best one */
-	printf("Population\n");
-
 	CUDAcreateArrayChromosome(best, params);
 
 	bestFit = CUDAcalculateFitness(best, d_inputs, d_outputs, data->numSamples, params->numInputs, params->numNodes);
-
-	for(i=0; i<solSize; i++) printf("%d ", (int)best[i]);
-	printf(":: %6.2f\n", bestFit);
 
 	for(i = 0; i < popSize-1; i++) {
 
 		CUDAcreateArrayChromosome(temp, params);
 
 		tempFit = CUDAcalculateFitness(temp, d_inputs, d_outputs, data->numSamples, params->numInputs, params->numNodes);
-
-		for(j=0; j<solSize; j++) printf("%d ", (int)temp[j]);
-		printf(":: %6.2f\n", tempFit);
 
 		if(tempFit <= bestFit) {
 			/* copying temp --> best */
@@ -811,13 +771,7 @@ __host__ int *CUDAexecuteCGP(struct parameters *params, struct dataset *data, in
 		}
 	}
 
-	printf("Best:\n");
-	for(i=0; i<solSize; i++) printf("%d ", (int)best[i]);
-	printf(":: %6.2f\n", bestFit);
-
 	for(i = 0; i < numGens; i++) {
-		
-		printf("GEN %d\n", i);
 
 		for(j = 0; j < popSize-1; j++) {
 
@@ -829,7 +783,7 @@ __host__ int *CUDAexecuteCGP(struct parameters *params, struct dataset *data, in
 			tempFit = CUDAcalculateFitness(temp, d_inputs, d_outputs, data->numSamples, params->numInputs, params->numNodes);
 			
 			/* if a mutated chromosome is better than best, save it  */
-			if(tempFit < bestFit) {
+			if(tempFit <= bestFit) {
 				/* copying temp --> best */
 				thrust::copy(temp.begin(), temp.end(), best.begin());
 				bestFit = tempFit;
@@ -837,11 +791,9 @@ __host__ int *CUDAexecuteCGP(struct parameters *params, struct dataset *data, in
 		}
 	}
 
-	printf("Final Best:\n");
-	for(i=0; i<solSize; i++) printf("%d ", (int)best[i]);
-	printf(":: %6.2f\n", bestFit);
-
-	return NULL;//best;
+	result = (int*)malloc(solSize * sizeof(int));
+	thrust::copy(best.begin(), best.end(), result);
+	return result;
 }
 
 #endif
