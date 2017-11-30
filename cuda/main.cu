@@ -3,8 +3,9 @@
 #include <thrust/reduce.h>
 #include <thrust/execution_policy.h>
 
-#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/transform.h>
+#include <thrust/functional.h>
 
 #include "cgp.cuh"
 
@@ -28,9 +29,9 @@ int main() {
 
 	params = initialiseParameters(9, 2, 4, data);//numNodes, maxArity, numFunctions
 
-	// printf("Dataset: '%s'\n", dataset_file);
+	printf("Dataset: '%s'\n", dataset_file);
 
-	// printParameters(params);
+	printParameters(params);
 
 	// printf("Running CGP\n");
 	// chromo = executeCGP(params, data, 10000);
@@ -47,33 +48,46 @@ int main() {
 	// printf("Best hardcoded\n");
 	printChromosome(best);
 
-	/* test */
-	best->fitness = -1;
+	/* CUDA */
+	int size = best->numNodes * (best->arity + 1) + best->numOutputs;
+	int *solution = (int*)malloc(size * sizeof(int));
+	createArrayFromChromosome(*best, solution);
+	for(int i=0; i<size; i++)
+		printf("%d ", solution[i]);
+	printf("\n");
+	
+
+	int *d_solution;
+	double *d_data_inputs;//, *d_data_outputs;
+
+	printf("Cuda Malloc\n");
+	cudaMalloc(&d_solution, 28 * sizeof(int));
+	cudaMalloc(&d_data_inputs, data->numSamples * sizeof(double));
+	// cudaMalloc(&d_data_outputs, data->numSamples * sizeof(double));
+
+	printf("Memory Copy\n");
+	cudaMemcpy(d_solution, solution, 28 * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_data_inputs, data->inputs, data->numSamples * sizeof(double), cudaMemcpyHostToDevice);
+	// // cudaMemcpy(d_data_outputs, data->outputs, data->numSamples * sizeof(double), cudaMemcpyHostToDevice);
+
+	// //setUpChromosomeData<<<4, 256>>>(dInPtr, dOutPrt, d_data_inputs, d_data_outputs, data->numSamples);
 
 	thrust::device_vector<double> outputs(data->numSamples);
-	double *out = thrust::raw_pointer_cast(outputs.data());
-
-	//4 x 256 = 1024 samples
-	// thrust::fill(fitnesses.begin(), fitnesses.end(), 0);
-
-	int numThreads = 256;
-	int numBlocks = ceil((float)data->numSamples/numThreads);
-	cudaCalculateFitnesses<<<4, 256>>>(*best, out, data->inputs, data->numSamples);
-	
+	double *dOutPrt = thrust::raw_pointer_cast(outputs.data());
+	printf("A\n");
+	teste<<<4, 256>>>(d_solution, d_data_inputs, dOutPrt, data->numSamples, 1, best->numNodes);
+	printf("B\n");
+	double error = 0.0;
 	for(int i=0; i<data->numSamples; i++) {
-		printf("%4d %6.2f\n", i, (double) outputs[i]);
+		error += fabs(outputs[i] - data->outputs[i]);
 	}
-
-	// double error = thrust::reduce(fitnesses.begin(), fitnesses.end());
-	// printf("Fitness: %f\n", error);
+	printf("Fitness: %f\n", error);
 
 	// freeChromosome(chromo);
 	freeChromosome(best);
 
 	freeDataset(data);
 	free(params);
-
-	//---------------------
 
 	return 0;
 }

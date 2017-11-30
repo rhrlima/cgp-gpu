@@ -1,6 +1,13 @@
+# Windows files
 *.exe
+*.exp
+*.lib
+
+# Linux
 *.o
 main
 test1
 test2
-dataset/generate.py
+
+# Folders
+datasets/generate.py

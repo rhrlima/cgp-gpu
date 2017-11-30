@@ -8,10 +8,9 @@
 #include <math.h>
 #include <float.h>
 
-#include <curand.h>
-#include <curand_kernel.h>
+#include "cgp.cuh"
 
-#include "cgp.h"
+#define NUMNODES 9
 
 #define ADD 0
 #define SUB 1
@@ -381,10 +380,9 @@ void singleMutation(struct chromosome *chromo, struct parameters *params) {
 /* -------------------------------------------------- */
 
 
-void executeChromosome(struct chromosome *chromo, double *inputs) {
+void executeChromosome(struct chromosome *chromo, double inputs) {
 
 	int i, j;
-
 	int nodeInputLocation;
 	int currentActiveNode;
 	int currentActiveNodeFuction;
@@ -414,7 +412,7 @@ void executeChromosome(struct chromosome *chromo, double *inputs) {
 
 				/* verify if the input location is a node or real input */
 				if(nodeInputLocation < numInputs) {
-					chromo->nodeInputsHold[j] = inputs[nodeInputLocation];
+					chromo->nodeInputsHold[j] = inputs;
 				}
 				else {
 					chromo->nodeInputsHold[j] = chromo->nodes[nodeInputLocation - numInputs]->output;
@@ -442,8 +440,8 @@ void executeChromosome(struct chromosome *chromo, double *inputs) {
 					break;
 			}
 
-			if (isnan(output) != 0) output = 0;
-			else if (isinf(output) != 0) output = (output > 0) ? DBL_MAX : DBL_MIN;
+			// if (isnan(output) != 0) output = 0;
+			// else if (isinf(output) != 0) output = (output > 0) ? DBL_MAX : DBL_MIN;
 
 			chromo->nodes[currentActiveNode]->output = output;
 		}
@@ -451,14 +449,12 @@ void executeChromosome(struct chromosome *chromo, double *inputs) {
 
 	/* Set the chromosome outputs */
 	for (i = 0; i < numOutputs; i++) {
-
 		if (chromo->outputNodes[i] < numInputs) {
-			chromo->outputValues[i] = inputs[chromo->outputNodes[i]];
+			chromo->outputValues[i] = inputs;
 		}
 		else {
 			chromo->outputValues[i] = chromo->nodes[chromo->outputNodes[i] - numInputs]->output;
 		}
-		//printf("output: %.2f\n", chromo->outputValues[i]);
 	}
 }
 
@@ -466,17 +462,14 @@ void executeChromosome(struct chromosome *chromo, double *inputs) {
 double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 	
 	int i, j;
-	double error = 0;
+	double error = 0.0;
 
 	for(i = 0; i < data->numSamples; i++) {
-
 		executeChromosome(chromo, data->inputs[i]);
-
 		for(j = 0; j < chromo->numOutputs; j++) {
-			error += fabs(chromo->outputValues[j] - data->outputs[i][j]);
+			error += fabs(chromo->outputValues[j] - data->outputs[i]);
 		}
 	}
-
 	chromo->fitness = error;
 	return error;
 }
@@ -537,7 +530,7 @@ struct chromosome *executeCGP(struct parameters *params, struct dataset *data, i
 struct dataset *loadDataset(char *fileName) {
 
 	FILE *file;
-	int i, j;
+	int i;
 	struct dataset *dset;
 	char buffer[100];
 
@@ -555,23 +548,13 @@ struct dataset *loadDataset(char *fileName) {
 	dset->numOutputs = atoi(strtok(NULL, ","));
 	dset->numSamples = atoi(strtok(NULL, ","));
 
-	dset->inputs = (double **) malloc(dset->numSamples * sizeof(double*));
-	for(i = 0; i < dset->numSamples; i++) dset->inputs[i] = (double *) malloc(dset->numInputs * sizeof(double));
-
-	dset->outputs = (double **) malloc(dset->numSamples * sizeof(double*));
-	for(i = 0; i < dset->numSamples; i++) dset->outputs[i] = (double *) malloc(dset->numOutputs * sizeof(double));
+	dset->inputs = (double*)malloc(dset->numSamples * sizeof(double));
+	dset->outputs = (double*)malloc(dset->numSamples * sizeof(double));
 
 	for(i = 0; i < dset->numSamples; i++) {
-
 		fgets(buffer, 100, file);
-
-		dset->inputs[i][0] = atof(strtok(buffer, ","));
-		for(j = 1; j < dset->numInputs; j++) {
-			dset->inputs[i][j] = atof(strtok(NULL, ","));
-		}
-		for(int j=0; j<dset->numOutputs; j++) {
-			dset->outputs[i][j] = atof(strtok(NULL, ","));
-		}
+		dset->inputs[i] = atof(strtok(buffer, ","));
+		dset->outputs[i] = atof(strtok(NULL, ","));
 	}
 
 	fclose(file);
@@ -581,11 +564,6 @@ struct dataset *loadDataset(char *fileName) {
 
 
 void freeDataset(struct dataset *data) {
-	int i;
-	for(i = 0; i < data->numSamples; i++) {
-		free(data->inputs[i]);
-		free(data->outputs[i]);
-	}
 	free(data->inputs);
 	free(data->outputs);
 	free(data);
@@ -641,122 +619,72 @@ void printParameters(struct parameters *params) {
 /* CUDA PART */
 /* ------------------------- */
 
-#define MAX 100
 
-__global__ void random(unsigned int seed, int *result) {
-
-	curandState_t state;
-
-	curand_init(seed, 0, 0, &state);
-
-	*result = curand(&state) & MAX;
+__host__ void createArrayFromChromosome(struct chromosome chromo, int *array) {
+	int i;
+	for(i = 0; i < chromo.numNodes; i++) {
+		array[i * (chromo.arity + 1)] = chromo.nodes[i]->function;
+		array[i * (chromo.arity + 1) + 1] = chromo.nodes[i]->inputs[0];
+		array[i * (chromo.arity + 1) + 2] = chromo.nodes[i]->inputs[1];
+	}
+	for(i = 0; i < chromo.numOutputs; i++) {
+		array[chromo.numNodes * (chromo.arity + 1) + i] = chromo.outputNodes[i];
+	}
 }
 
 
-__device__ void cudaExecuteChromosome(struct chromosome chromo, double *inputs, double *outputs) {
+__global__ void setUpChromosomeData(double *dstIn, double *dstOut, double *srcIn, double *srcOut, int numSamples) {
 
-	int i, j;
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index < numSamples) {
+		dstIn[index] = srcIn[index];
+		dstOut[index] = srcOut[index];
+	}
+}
 
-	int nodeInputLocation;
-	int currentActiveNode;
-	int currentActiveNodeFuction;
-	int nodeArity;
 
-	int numInputs = chromo.numInputs;
-	int numNodes = chromo.numNodes;
-	int numOutputs = chromo.numOutputs;
+__global__ void teste(int *solution, double *inputs, double *outputs, int numSamples, int numInputs, int numNodes) {
 
-	double *nodeInputsHold = new double[chromo.arity];
-	double *nodeOutputs = new double[numOutputs];
+	int sample = blockIdx.x * blockDim.x + threadIdx.x;
 
-	/* for all of the active nodes */
-	for (i = 0; i < numNodes; i++) {
+	if (sample < 1024) {
+		int i;
 
-		if (chromo.activeNodes[i]) {
+		double *nodeOutputs = new double[numNodes];
 
-			currentActiveNode = i;
-			nodeArity = chromo.nodes[currentActiveNode]->actArity;
+		for(i = 0; i < 9; i++) {
 
-			for(j = 0; j < nodeArity; j++) {
-				
-				nodeInputLocation = chromo.nodes[currentActiveNode]->inputs[j];
+			nodeOutputs[i] = 0.0;
 
-				// verify if the input location is a node or real input 
-				if(nodeInputLocation < numInputs) {
-					nodeInputsHold[j] = 1.0;//inputs[nodeInputLocation];
-				} else {
-					//chromo.nodes[nodeInputLocation - numInputs]->output;
-					nodeInputsHold[j] = 2.0;//nodeOutputs[nodeInputLocation - numInputs];
-				}
-			}
+			int function = solution[i*3];
 
-			// /* get the functionality of the active node under evaluation */
-			currentActiveNodeFuction = chromo.nodes[currentActiveNode]->function;
+			int inIdx1 = solution[i*3+1];
+			int inIdx2 = solution[i*3+2];
 
-			//  calculate the output of the active node under evaluation 
-			// //melhorar depois
+			double inValue1 = (inIdx1 < numInputs) ? inputs[sample] : nodeOutputs[inIdx1 - numInputs];
+			double inValue2 = (inIdx2 < numInputs) ? inputs[sample] : nodeOutputs[inIdx2 - numInputs];
+
 			double output = 0.0;
-			switch(currentActiveNodeFuction) {
+			switch(function) {
 				case ADD:
-					output = 0;//chromo.nodeInputsHold[0] + chromo.nodeInputsHold[1];
+					output = inValue1 + inValue2;
 					break;
 				case SUB:
-					output = 1;//chromo.nodeInputsHold[0] - chromo.nodeInputsHold[1];
+					output = inValue1 - inValue2;
 					break;
 				case MUL:
-					output = 2;//chromo.nodeInputsHold[0] * chromo.nodeInputsHold[1];
+					output = inValue1 * inValue2;
 					break;
 				case DIV:
-					output = 3;//chromo.nodeInputsHold[0] / chromo.nodeInputsHold[1];
+					output = inValue1 / inValue2;
 					break;
 			}
 
-			if (isnan(output) != 0) output = 0;
-			else if (isinf(output) != 0) output = (output > 0) ? DBL_MAX : DBL_MIN;
-
-			/* node output receives the node processed data */
-			// chromo.nodes[currentActiveNode]->output = output;
-			//nodeOutputs[currentActiveNode] = 2.0;//output;
+			nodeOutputs[i] = output;
 		}
+		outputs[sample] = nodeOutputs[solution[27]-numInputs];//output node
+		delete nodeOutputs;
 	}
-
-	/* Set the chromosome outputs */
-	for (i = 0; i < numOutputs; i++) {
-
-		// if (chromo.outputNodes[i] < numInputs) {
-		// 	// chromo.outputValues[i] = inputs[chromo.outputNodes[i]];
-		// 	// outputs[i] = inputs[chromo.outputNodes[i]];
-		// 	//outputs[i] = inputs[chromo.outputNodes[i]];
-		// }
-		// else {
-		// 	// chromo.outputValues[i] = chromo.nodes[chromo.outputNodes[i] - numInputs].output;
-		// 	//outputs[i] = nodeOutputs[chromo.outputNodes[i] - numInputs];
-		// }
-		outputs[i] = 6.0;
-	}
-
-	delete nodeInputsHold;
-	delete nodeOutputs;
-}
-
-
-__global__ void cudaCalculateFitnesses(struct chromosome chromo, double *outputs, double **inputs, int numSamples) {
-
-	int i;
-	int sample = blockIdx.x * blockDim.x + threadIdx.x;
-	
-	double *temp = new double[chromo.numOutputs];
-
-	if (sample < numSamples) {
-		/* executes the kernel */
-		cudaExecuteChromosome(chromo, inputs[sample], temp);
-		outputs[sample] = 0;
-		for(i = 0; i < chromo.numOutputs; i++) {
-			outputs[sample] += temp[i];
-		}
-	}
-
-	delete temp;
 }
 
 

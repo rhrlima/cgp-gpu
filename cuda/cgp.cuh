@@ -33,8 +33,8 @@ struct dataset {
 	int numInputs;
 	int numOutputs;
 	int numSamples;
-	double **inputs;
-	double **outputs;
+	double *inputs;
+	double *outputs;
 };
 
 
@@ -67,7 +67,7 @@ void singleMutation(struct chromosome *chromo, struct parameters *params);
 
 
 /* chromosome evaluation */
-void executeChromosome(struct chromosome *chromo, double *inputs);
+void executeChromosome(struct chromosome *chromo, double inputs);
 
 double calculateFitness(struct chromosome *chromo, struct dataset *data);
 
@@ -98,9 +98,8 @@ void printParameters(struct parameters *params);
 /* CUDA PART */
 /* ------------------------- */
 
+__host__ void createArrayFromChromosome(struct chromosome chromo, int *array);
 
-__global__ void random(unsigned int seed, int *result);
+__global__ void setUpChromosomeData(double *dstIn, double *dstOut, double *ssrcIn, double *srcOut, int numSamples);
 
-__device__ void cudaExecuteChromosome(struct chromosome chromo, double *inputs, double *outputs);
-
-__global__ void cudaCalculateFitnesses(struct chromosome chromo, double *outputs, double **inputs, int numSamples);
+__global__ void teste(int *solution, double *inputs, double *outputs, int numSamples, int numInputs, int numNodes);
