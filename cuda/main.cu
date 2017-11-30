@@ -1,10 +1,7 @@
 #include <stdio.h>
 
-#include <thrust/reduce.h>
-#include <thrust/execution_policy.h>
+#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-#include <thrust/transform.h>
-#include <thrust/functional.h>
 
 #include "cgp.cuh"
 
@@ -39,20 +36,7 @@ int main() {
 	// printf("Best hardcoded\n");
 	printChromosome(best);
 
-	int *array2 = createArrayChromosome(params);
-	for(int i = 0; i < 28; i++) printf("%d ", array2[i]);
-	printf("\n");
-
 	// /* CUDA */
-	// best->fitness = -1;
-	// printChromosome(best);
-	// CUDAcalculateFitness(best, data);
-	// printChromosome(best);
-
-	// printf("Running CGP\n");
-	// chromo = executeCGP(params, data, 10000);
-	// printf("Best solution found\n");
-	// printChromosome(chromo);
 
 	CUDAexecuteCGP(params, data, 5, 100);
 

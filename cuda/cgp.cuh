@@ -98,14 +98,12 @@ void printParameters(struct parameters *params);
 /* CUDA PART */
 /* ------------------------- */
 
-__host__ int *createArrayChromosome(struct parameters *params);
+__host__ void CUDAcreateArrayChromosome(thrust::host_vector<int> &array, struct parameters *params);
 
 __host__ void CUDAcreateArrayFromChromosome(struct chromosome chromo, int *array);
 
 __global__ void CUDAcalculateChromosomeOutputs(int *solution, double *inputs, double *outputs, int numSamples, int numInputs, int numNodes);
 
-__host__ void CUDAcalculateFitness(struct chromosome *chromo, struct dataset *data);
-
-__host__ double CUDAcalculateFitness2(int *chromoArray, thrust::device_vector<double> &d_inputs, thrust::device_vector<double> &d_outputs, int numSamples, int numNodes);
+__host__ double CUDAcalculateFitness(thrust::host_vector<int> &h_solution, thrust::device_vector<double> &d_inputs, thrust::device_vector<double> &d_outputs, int numSamples, int numInputs, int numNodes);
 
 __host__ int *CUDAexecuteCGP(struct parameters *params, struct dataset *data, int popSize, int numGens);

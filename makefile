@@ -17,9 +17,9 @@ test: src/cgp.c src/cgp.h tests/test1.c tests/test2.c
 	./test1
 	./test2
 
-gpu:
+gpu: cuda/cgp.cu cuda/cgp.cuh cuda/main.cu
 	$(CUC) cuda/cgp.cu cuda/main.cu -o gmain $(GPUFLAGS)
-	./gmain.exe
+	./gmain
 
 clean:
 	rm -f main

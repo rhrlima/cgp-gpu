@@ -6,6 +6,7 @@
 # Linux
 *.o
 main
+gmain
 test1
 test2
 
