@@ -2,7 +2,6 @@
 
 #include <thrust/reduce.h>
 #include <thrust/execution_policy.h>
-
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
 #include <thrust/functional.h>
@@ -33,55 +32,29 @@ int main() {
 
 	printParameters(params);
 
-	// printf("Running CGP\n");
-	// chromo = executeCGP(params, data, 10000);
-
-	// printf("Best solution found\n");
-	// printChromosome(chromo);
-
-	int array[] = {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 2, 4, 1, 4, 1, 2, 2, 5, 3, 2, 3, 6}; //best for dataset 2
-	// // int array[] = {0, 0, 1, 2, 0, 1, 1, 0, 0, 1, 4, 0, 2, 1, 1, 2, 5, 6, 0, 2, 3, 0, 8, 7, 9}; //best for dataset 3
-	// // int array[] = {2, , 1, 2};
+	int array[] = {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 2, 4, 1, 4, 1, 2, 2, 5, 3, 2, 3, 6};
 	best = createChromosomeFromArray(params, array);
 	calculateFitness(best, data);
 
 	// printf("Best hardcoded\n");
 	printChromosome(best);
 
-	/* CUDA */
-	int size = best->numNodes * (best->arity + 1) + best->numOutputs;
-	int *solution = (int*)malloc(size * sizeof(int));
-	createArrayFromChromosome(*best, solution);
-	for(int i=0; i<size; i++)
-		printf("%d ", solution[i]);
+	int *array2 = createArrayChromosome(params);
+	for(int i = 0; i < 28; i++) printf("%d ", array2[i]);
 	printf("\n");
-	
 
-	int *d_solution;
-	double *d_data_inputs;//, *d_data_outputs;
+	// /* CUDA */
+	// best->fitness = -1;
+	// printChromosome(best);
+	// CUDAcalculateFitness(best, data);
+	// printChromosome(best);
 
-	printf("Cuda Malloc\n");
-	cudaMalloc(&d_solution, 28 * sizeof(int));
-	cudaMalloc(&d_data_inputs, data->numSamples * sizeof(double));
-	// cudaMalloc(&d_data_outputs, data->numSamples * sizeof(double));
+	// printf("Running CGP\n");
+	// chromo = executeCGP(params, data, 10000);
+	// printf("Best solution found\n");
+	// printChromosome(chromo);
 
-	printf("Memory Copy\n");
-	cudaMemcpy(d_solution, solution, 28 * sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_data_inputs, data->inputs, data->numSamples * sizeof(double), cudaMemcpyHostToDevice);
-	// // cudaMemcpy(d_data_outputs, data->outputs, data->numSamples * sizeof(double), cudaMemcpyHostToDevice);
-
-	// //setUpChromosomeData<<<4, 256>>>(dInPtr, dOutPrt, d_data_inputs, d_data_outputs, data->numSamples);
-
-	thrust::device_vector<double> outputs(data->numSamples);
-	double *dOutPrt = thrust::raw_pointer_cast(outputs.data());
-	printf("A\n");
-	teste<<<4, 256>>>(d_solution, d_data_inputs, dOutPrt, data->numSamples, 1, best->numNodes);
-	printf("B\n");
-	double error = 0.0;
-	for(int i=0; i<data->numSamples; i++) {
-		error += fabs(outputs[i] - data->outputs[i]);
-	}
-	printf("Fitness: %f\n", error);
+	CUDAexecuteCGP(params, data, 5, 100);
 
 	// freeChromosome(chromo);
 	freeChromosome(best);

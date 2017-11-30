@@ -8,9 +8,15 @@
 #include <math.h>
 #include <float.h>
 
+#include <thrust/execution_policy.h>
+#include <thrust/reduce.h>
+#include <thrust/transform.h>
+#include <thrust/device_vector.h>
+#include <thrust/functional.h>
+
 #include "cgp.cuh"
 
-#define NUMNODES 9
+#define NTHREADS 1024
 
 #define ADD 0
 #define SUB 1
@@ -37,7 +43,7 @@ struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions
 
 	/* set the nodes inputs and connection weights */
 	for (i = 0; i < arity; i++) {
-		n->inputs[i] = getRandomNodeInput(numInputs, numNodes, nodePosition);
+		n->inputs[i] = getRandomNodeInput(numInputs, nodePosition);
 	}
 
 	/* set the output of the node to zero*/
@@ -86,19 +92,13 @@ struct chromosome *createChromosome(struct parameters *params) {
 	int i;
 
 	chromo = (struct chromosome*)malloc(sizeof(struct chromosome));
-
 	chromo->nodes = (struct node**)malloc(params->numNodes * sizeof(struct node*));
-
 	chromo->outputNodes = (int*)malloc(params->numOutputs * sizeof(int));
-
 	chromo->activeNodes = (int*)malloc(params->numNodes * sizeof(int));
-
 	chromo->outputValues = (double*)malloc(params->numOutputs * sizeof(double));
-
 	for (i = 0; i < params->numNodes; i++) {
 		chromo->nodes[i] = createNode(params->numInputs, params->numNodes, params->arity, params->numFunctions, i);
 	}
-
 	for (i = 0; i < params->numOutputs; i++) {
 		chromo->outputNodes[i] = getRandomChromosomeOutput(params->numInputs, params->numNodes);
 	}
@@ -225,7 +225,7 @@ void freeChromosome(struct chromosome *chromo) {
 }
 
 
-int getRandomNodeInput(int numChromoInputs, int numNodes, int nodePosition) {
+int getRandomNodeInput(int numChromoInputs, int nodePosition) {
 	/* pick any previous node including inputs */
 	return randint(0, numChromoInputs + nodePosition);
 }
@@ -350,7 +350,7 @@ void singleMutation(struct chromosome *chromo, struct parameters *params) {
 
 			previousGeneValue = chromo->nodes[nodeIndex]->inputs[nodeInputIndex];
 
-			chromo->nodes[nodeIndex]->inputs[nodeInputIndex] = getRandomNodeInput(chromo->numInputs, chromo->numNodes, nodeIndex);
+			chromo->nodes[nodeIndex]->inputs[nodeInputIndex] = getRandomNodeInput(chromo->numInputs, nodeIndex);
 
 			newGeneValue = chromo->nodes[nodeIndex]->inputs[nodeInputIndex];
 
@@ -619,8 +619,27 @@ void printParameters(struct parameters *params) {
 /* CUDA PART */
 /* ------------------------- */
 
+__host__ int *createArrayChromosome(struct parameters *params) {
 
-__host__ void createArrayFromChromosome(struct chromosome chromo, int *array) {
+	int i, size; int *array;
+
+	size = params->numNodes * (params->arity + 1) + params->numOutputs;
+	array = (int*)malloc(size * sizeof(int));
+
+	for(i = 0; i < params->numNodes; i++) {
+		array[i * (params->arity + 1)] = randint(0, params->numFunctions);
+		array[i * (params->arity + 1) + 1] = randint(0, params->numInputs + i);
+		array[i * (params->arity + 1) + 2] = randint(0, params->numInputs + i);
+	}
+	for(i = 0; i < params->numOutputs; i++) {
+		array[params->numNodes * (params->arity + 1) + i] = randint(0, params->numInputs + params->numNodes);
+	}
+
+	return array;
+}
+
+
+__host__ void CUDAcreateArrayFromChromosome(struct chromosome chromo, int *array) {
 	int i;
 	for(i = 0; i < chromo.numNodes; i++) {
 		array[i * (chromo.arity + 1)] = chromo.nodes[i]->function;
@@ -633,21 +652,11 @@ __host__ void createArrayFromChromosome(struct chromosome chromo, int *array) {
 }
 
 
-__global__ void setUpChromosomeData(double *dstIn, double *dstOut, double *srcIn, double *srcOut, int numSamples) {
-
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index < numSamples) {
-		dstIn[index] = srcIn[index];
-		dstOut[index] = srcOut[index];
-	}
-}
-
-
-__global__ void teste(int *solution, double *inputs, double *outputs, int numSamples, int numInputs, int numNodes) {
+__global__ void CUDAcalculateChromosomeOutputs(int *solution, double *inputs, double *outputs, int numSamples, int numInputs, int numNodes) {
 
 	int sample = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (sample < 1024) {
+	if (sample < numSamples) {
 		int i;
 
 		double *nodeOutputs = new double[numNodes];
@@ -687,5 +696,142 @@ __global__ void teste(int *solution, double *inputs, double *outputs, int numSam
 	}
 }
 
+
+__host__ void CUDAcalculateFitness(struct chromosome *chromo, struct dataset *data) {
+
+	int chromoSize; int *chromoArray; int *dSolPtr;
+
+	double *dInPtr, *dOutPtr;
+
+	chromoSize = chromo->numNodes * (chromo->arity + 1) + chromo->numOutputs;
+	chromoArray = (int*)malloc(chromoSize * sizeof(int));
+
+	CUDAcreateArrayFromChromosome(*chromo, chromoArray);
+
+	thrust::device_vector<int> d_solution(chromoArray, chromoArray + chromoSize);
+
+	thrust::device_vector<double> d_inputs(data->inputs, data->inputs + data->numSamples);
+	thrust::device_vector<double> d_outputs(data->outputs, data->outputs + data->numSamples);
+
+	thrust::device_vector<double> chromoOutputs(data->numSamples);
+
+	dSolPtr = thrust::raw_pointer_cast(d_solution.data());
+	dInPtr = thrust::raw_pointer_cast(d_inputs.data());
+	dOutPtr = thrust::raw_pointer_cast(chromoOutputs.data());
+
+	int numThreads = 1024;
+	int numBlocks = ceil((float)data->numSamples/numThreads);
+	CUDAcalculateChromosomeOutputs<<<numBlocks, numThreads>>>(dSolPtr, dInPtr, dOutPtr, data->numSamples, 1, chromo->numNodes);
+
+	thrust::transform(d_outputs.begin(), d_outputs.end(), 
+		chromoOutputs.begin(), 
+		chromoOutputs.begin(), 
+		thrust::minus<double>());
+
+	chromo->fitness = thrust::reduce(chromoOutputs.begin(), chromoOutputs.end());
+}
+
+
+__host__ double CUDAcalculateFitness2(int *chromoArray, 
+	thrust::device_vector<double> &d_inputs, 
+	thrust::device_vector<double> &d_outputs, 
+	int numSamples,
+	int numNodes) {
+
+	int chromoSize; 
+
+	int *dSolPtr;
+	double *dInPtr;
+	double *dOutPtr;
+
+	chromoSize = 28;//chromo->numNodes * (chromo->arity + 1) + chromo->numOutputs;
+	// chromoArray = (int*)malloc(chromoSize * sizeof(int));
+
+	thrust::device_vector<int> d_solution(chromoArray, chromoArray + chromoSize);
+	thrust::device_vector<double> chromoOutputs(numSamples);
+
+	//thrust::device_vector<double> d_inputs(data->inputs, data->inputs + data->numSamples);
+	//thrust::device_vector<double> d_outputs(data->outputs, data->outputs + data->numSamples);
+
+	dSolPtr = thrust::raw_pointer_cast(d_solution.data());
+	dInPtr = thrust::raw_pointer_cast(d_inputs.data());
+	dOutPtr = thrust::raw_pointer_cast(chromoOutputs.data());
+
+	int numThreads = NTHREADS;
+	int numBlocks = ceil((float)numSamples/numThreads);
+	CUDAcalculateChromosomeOutputs<<<numBlocks, numThreads>>>(dSolPtr, dInPtr, dOutPtr, numSamples, 1, numNodes);
+
+	thrust::transform(d_outputs.begin(), d_outputs.end(), 
+		chromoOutputs.begin(), 
+		chromoOutputs.begin(), 
+		thrust::minus<double>());
+
+	return thrust::reduce(chromoOutputs.begin(), chromoOutputs.end());
+}
+
+
+__host__ int *CUDAexecuteCGP(struct parameters *params, struct dataset *data, int popSize, int numGens) {
+
+	// struct chromosome *chromo, *best;
+	int *temp, *best;
+
+	int i, j, chromoSize;
+
+	/* device array for the chromosome */
+	// thrust::device_vector<int> d_solution(chromoArray, chromoArray + chromoSize);
+
+	/* device arrays for the data inputs and outputs */
+	thrust::device_vector<double> d_inputs(data->inputs, data->inputs + data->numSamples);
+	thrust::device_vector<double> d_outputs(data->outputs, data->outputs + data->numSamples);
+
+	/* device array that holds the solution outputs */
+	// thrust::device_vector<double> chromoOutputs(data->numSamples);
+
+	/* pointers created to pass thrust arrays to kernel */
+	// dSolPtr = thrust::raw_pointer_cast(d_solution.data());
+	// dInPtr = thrust::raw_pointer_cast(d_inputs.data());
+	// dOutPtr = thrust::raw_pointer_cast(chromoOutputs.data());
+
+	/* creates popSize chromosomes and stores the best one */
+	printf("Population\n");
+
+	// best = createArrayChromosome(params);
+	int array[] = {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 2, 4, 1, 4, 1, 2, 2, 5, 3, 2, 3, 6};
+
+	// calculateFitness(best, data);
+	double fit = CUDAcalculateFitness2(array, d_inputs, d_outputs, data->numSamples, params->numNodes);
+	printf("Fit: %6.2f\n", fit);
+
+	// for(i = 0; i < popSize-1; i++) {
+	// 	chromo = createChromosome(params);
+	// 	calculateFitness(chromo, data);
+	// 	if(chromo->fitness < best->fitness) {
+	// 		copyChromosome(best, chromo);
+	// 	} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
+	// 		copyChromosome(best, chromo);
+	// 	}
+	// 	/* if isn't the last iteration, free it */
+	// 	if (i < popSize-2) freeChromosome(chromo);
+	// }
+
+	// for(i = 0; i < numGens; i++) {
+	// 	for(j = 0; j < popSize-1; j++) {
+	// 		/* copies the best to mutate */
+	// 		copyChromosome(chromo, best);
+	// 		/* applies the mutation */
+	// 		singleMutation(chromo, params);
+	// 		calculateFitness(chromo, data);
+	// 		/* if a mutated chromosome is better than best, save it */
+	// 		if(chromo->fitness < best->fitness) {
+	// 			copyChromosome(best, chromo);
+	// 		} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
+	// 			copyChromosome(best, chromo);
+	// 		}
+	// 	}
+	// }
+	// freeChromosome(chromo);
+
+	return best;
+}
 
 #endif
