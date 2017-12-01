@@ -1,51 +1,56 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <math.h>
-
+#include <windows.h>
 #include "cgp.h"
 
-int main() {
+#define DATASETBUFFER 100
 
-	srand(time(NULL));
+#define NUMNODES 9
+#define MAXARITY 2
+#define NUMFUNCTIONS 4
 
-	char dataset_file[100];
+#define POPSIZE 5
+#define MAXGENS 100
+
+int main(int argc, char *argv[]) {
+
+	unsigned int seed = time(NULL);
+	srand(seed);
+
+	char dataset_file[DATASETBUFFER];
 
 	struct dataset *data;
 	struct parameters *params;
-	struct chromosome *chromo, *best;
+	struct chromosome *chromo;
 
-	strcpy(dataset_file, "datasets/symbolic2.data");	//x*x + x+x | (9, 2, 4)
-	//strcpy(dataset_file, "datasets/symbolic3.data");	//(x0+x1) + (x0*x1) + (-x0)*(x1*x1) | (8, 2, 4)
-	//strcpy(dataset_file, "datasets/symbolic4.data"); //x0*x1*x1 + x2*x1 + x*3
-
-	data = loadDataset(dataset_file);
-
-	params = initialiseParameters(9, 2, 4, data);//numNodes, maxArity, numFunctions
+	if (argc > 1) strcpy(dataset_file, argv[1]);
+	else exit(0);
 
 	printf("Dataset: '%s'\n", dataset_file);
+	data = loadDataset(dataset_file);
 
+	params = initialiseParameters(NUMNODES, MAXARITY, NUMFUNCTIONS, data);
 	printParameters(params);
 
-	printf("Running CGP\n");
-	chromo = executeCGP(params, data, 10000);
+	printf("CPU CGP\n");
 
-	printf("Best solution found\n");
+	LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+    LARGE_INTEGER end;
+    double interval;
+
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
+
+	chromo = executeCGP(params, data, POPSIZE, MAXGENS);
+
+	QueryPerformanceCounter(&end);
+    interval = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
+
+    printf("TIME: %f seconds\n", interval);
+
+	calculateFitness(chromo, data);
 	printChromosome(chromo);
 
-	int array[] = {1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 2, 4, 1, 4, 1, 2, 2, 5, 3, 2, 3, 6}; //best for dataset 2
-	// int array[] = {0, 0, 1, 2, 0, 1, 1, 0, 0, 1, 4, 0, 2, 1, 1, 2, 5, 6, 0, 2, 3, 0, 8, 7, 9}; //best for dataset 3
-	// int array[] = {2, , 1, 2};
-	best = createChromosomeFromArray(params, array);
-	calculateFitness(best, data);
-
-	printf("Best hardcoded\n");
-	printChromosome(best);
-
 	freeChromosome(chromo);
-	freeChromosome(best);
-	
 	freeDataset(data);
 	free(params);
 

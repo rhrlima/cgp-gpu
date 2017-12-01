@@ -1,12 +1,7 @@
 #ifndef HEADER_CGP_
 #define HEADER_CGP_
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <math.h>
-#include <float.h>
+
 
 #include "cgp.h"
 
@@ -483,25 +478,23 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 /* -------------------------------------------------- */
 
 
-struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens) {
+struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int popSize, int numGens) {
 
 	struct chromosome *chromo, *best;
 
 	int i, j;
-	int popSize = 5;
 
 	/* creates popSize chromosomes and stores the best one */
-	printf("Population\n");
 
 	best = createChromosome(params);
 	calculateFitness(best, data);
 
 	for(i = 0; i < popSize-1; i++) {
+
 		chromo = createChromosome(params);
 		calculateFitness(chromo, data);
-		if(chromo->fitness < best->fitness) {
-			copyChromosome(best, chromo);
-		} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
+
+		if(chromo->fitness <= best->fitness) {
 			copyChromosome(best, chromo);
 		}
 		/* if isn't the last iteration, free it */
@@ -516,9 +509,7 @@ struct chromosome *executeCGP(struct parameters *params, struct dataset *data, i
 			singleMutation(chromo, params);
 			calculateFitness(chromo, data);
 			/* if a mutated chromosome is better than best, save it */
-			if(chromo->fitness < best->fitness) {
-				copyChromosome(best, chromo);
-			} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
+			if(chromo->fitness <= best->fitness) {
 				copyChromosome(best, chromo);
 			}
 		}

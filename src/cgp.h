@@ -1,3 +1,10 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <math.h>
+#include <float.h>
+
 struct node {
 	int function;
 	int *inputs;
@@ -22,11 +29,11 @@ struct chromosome {
 };
 
 struct parameters {
-	int numInputs;		//Inputs for the dataset
-	int numOutputs;		//Outputs for the dataset
-	int numNodes;		//Cols * Rows
-	int arity;			//Max arity from functions (usually 2)
-	int numFunctions;	//Available functions
+	int numInputs;
+	int numOutputs;
+	int numNodes;
+	int arity;
+	int numFunctions;
 };
 
 struct dataset {
@@ -44,7 +51,6 @@ struct node *createNode(int numInputs, int numNodes, int arity, int numFunctions
 void copyNode(struct node *dst, struct node *src);
 
 void freeNode(struct node *node);
-
 
 struct chromosome *createChromosome(struct parameters *params);
 
@@ -76,7 +82,7 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data);
 /* evolutionary strategy */
 
 /* 4 + 1 Evolutionary Strategy */
-struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens);
+struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int popSize, int numGens);
 
 
 /* dataset */

@@ -3,6 +3,7 @@
 
 #include "cgp.cuh"
 
+#define NUMNODES 100
 #define NTHREADS 1024
 
 #define ADD 0
@@ -635,7 +636,7 @@ __global__ void CUDAcalculateChromosomeOutputs(int *solution, double *inputs, do
 	if (sample < numSamples) {
 		int i;
 
-		double *nodeOutputs = new double[numNodes];
+		double nodeOutputs[NUMNODES];
 
 		for(i = 0; i < 9; i++) {
 
@@ -670,8 +671,7 @@ __global__ void CUDAcalculateChromosomeOutputs(int *solution, double *inputs, do
 
 			nodeOutputs[i] = output;
 		}
-		outputs[sample] = nodeOutputs[solution[27]-numInputs];//output node
-		delete nodeOutputs;
+		outputs[sample] = nodeOutputs[solution[27]-numInputs];
 	}
 }
 

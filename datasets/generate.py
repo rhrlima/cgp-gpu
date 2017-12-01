@@ -1,16 +1,18 @@
-#Y = X0+X1 + X0*X1 + -X0*(X1*X1) + 0
-func = "x*x + x+x + x-x"
-#func = "x0+x1 + x0*x1 - x0*x1**2"
+func = "x*x*x + x*x + x+x"
 
 in_  = 1
 out_ = 1
 min_ = 0
-max_ = 20
+max_ = 1000000
 
-file = open("symbolic2.data", "w")
+file_name = "symbolic2_{}.data".format(max_)
+file = open(file_name, "w")
+
 file.write("{},{},{},\n".format(in_, out_, (max_ - min_)))
-for x in range(min_, max_):
-	print("{: >5} : {: <10}".format(x, eval(func)))
-	file.write("{},{},\n".format(x,  eval(func)))
+
+for v in range(min_, max_):
+	x = v/max_
+	file.write("{},{},\n".format(x/1000,  eval(func)))
+
 file.close()
 print("Done")
