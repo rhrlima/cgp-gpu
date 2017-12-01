@@ -558,7 +558,7 @@ struct dataset *loadDataset(char *fileName) {
 		for(j = 1; j < dset->numInputs; j++) {
 			dset->inputs[i][j] = atof(strtok(NULL, ","));
 		}
-		for(int j=0; j<dset->numOutputs; j++) {
+		for(j = 0; j<dset->numOutputs; j++) {
 			dset->outputs[i][j] = atof(strtok(NULL, ","));
 		}
 	}

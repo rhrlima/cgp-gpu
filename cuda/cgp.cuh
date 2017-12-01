@@ -35,11 +35,11 @@ struct chromosome {
 };
 
 struct parameters {
-	int numInputs;		//Inputs for the dataset
-	int numOutputs;		//Outputs for the dataset
-	int numNodes;		//Cols * Rows
-	int arity;			//Max arity from functions (usually 2)
-	int numFunctions;	//Available functions
+	int numInputs;
+	int numOutputs;
+	int numNodes;
+	int arity;
+	int numFunctions;
 };
 
 struct dataset {
@@ -75,18 +75,10 @@ void freeChromosome(struct chromosome *chromo);
 void printChromosome(struct chromosome *chromo);
 
 
-/* mutation */
-void singleMutation(struct chromosome *chromo, struct parameters *params);
-
-
 /* chromosome evaluation */
 void executeChromosome(struct chromosome *chromo, double inputs);
 
 double calculateFitness(struct chromosome *chromo, struct dataset *data);
-
-
-/* evolutionary strategy */
-struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens);
 
 
 /* dataset */

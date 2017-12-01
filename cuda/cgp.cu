@@ -118,27 +118,22 @@ struct chromosome *createChromosomeFromArray(struct parameters *params, int *arr
 	int i, j;
 
 	chromo = (struct chromosome*)malloc(sizeof(struct chromosome));
-
 	chromo->nodes = (struct node**)malloc(params->numNodes * sizeof(struct node*));
-
 	chromo->outputNodes = (int*)malloc(params->numOutputs * sizeof(int));
-
 	chromo->activeNodes = (int*)malloc(params->numNodes * sizeof(int));
-
 	chromo->outputValues = (double*)malloc(params->numOutputs * sizeof(double));
 
 	for (i = 0; i < params->numNodes; i++) {
+
 		chromo->nodes[i] = (struct node*)malloc(sizeof(struct node));
-
 		chromo->nodes[i]->inputs = (int*)malloc(params->arity * sizeof(int));
-
 		chromo->nodes[i]->function = array[i * (params->arity + 1)];
+
 		for (j = 0; j < params->arity; j++) {
 			chromo->nodes[i]->inputs[j] = array[i * (params->arity + 1) + j + 1];
 		}
 
 		chromo->nodes[i]->active = 1;
-
 		chromo->nodes[i]->output = 0;
 
 		chromo->nodes[i]->maxArity = params->arity;
@@ -155,7 +150,6 @@ struct chromosome *createChromosomeFromArray(struct parameters *params, int *arr
 	chromo->arity = params->arity;
 
 	chromo->numActiveNodes = params->numNodes;
-
 	chromo->fitness = -1;
 
 	setChromosomeActiveNodes(chromo);
@@ -186,8 +180,6 @@ void copyChromosome(struct chromosome *dst, struct chromosome *src) {
 		dst->outputNodes[i] = src->outputNodes[i];
 		dst->outputValues[i] = src->outputValues[i];
 	}
-
-	//inputHold não precisa?
 }
 
 
@@ -283,86 +275,6 @@ void printChromosome(struct chromosome *chromo) {
 	printf("| %.2f\n", chromo->fitness);
 }
 
-
-/* -------------------------------------------------- */
-
-
-void singleMutation(struct chromosome *chromo, struct parameters *params) {
-
-	int numFunctionGenes, numInputGenes, numOutputGenes;
-	int numGenes;
-	int geneToMutate;
-	int nodeIndex;
-	int nodeInputIndex;
-
-	int mutatedActive = 0;
-	int previousGeneValue;
-	int newGeneValue;
-
-	/* get the number of each type of gene */
-	numFunctionGenes = params->numNodes;
-	numInputGenes = params->numNodes * params->arity;
-	numOutputGenes = params->numOutputs;
-
-	/* set the total number of chromosome genes */
-	numGenes = numFunctionGenes + numInputGenes + numOutputGenes;
-
-	/* while active gene not mutated */
-	while (mutatedActive == 0) {
-
-		/* select a random gene */
-		geneToMutate = randint(0, numGenes);
-
-		/* mutate function gene */
-		if (geneToMutate < numFunctionGenes) {
-
-			nodeIndex = geneToMutate;
-
-			previousGeneValue = chromo->nodes[nodeIndex]->function;
-
-			chromo->nodes[nodeIndex]->function = randint(0, params->numFunctions);
-
-			newGeneValue = chromo->nodes[nodeIndex]->function;
-
-			if ((previousGeneValue != newGeneValue) && (chromo->nodes[nodeIndex]->active == 1)) {
-				mutatedActive = 1;
-			}
-
-		}
-
-		/* mutate node input gene */
-		else if (geneToMutate < numFunctionGenes + numInputGenes) {
-
-			nodeIndex = (int) ((geneToMutate - numFunctionGenes) / chromo->arity);
-			nodeInputIndex = (geneToMutate - numFunctionGenes) % chromo->arity;
-
-			previousGeneValue = chromo->nodes[nodeIndex]->inputs[nodeInputIndex];
-
-			chromo->nodes[nodeIndex]->inputs[nodeInputIndex] = getRandomNodeInput(chromo->numInputs, nodeIndex);
-
-			newGeneValue = chromo->nodes[nodeIndex]->inputs[nodeInputIndex];
-
-			if ((previousGeneValue != newGeneValue) && (chromo->nodes[nodeIndex]->active == 1)) {
-				mutatedActive = 1;
-			}
-		}
-
-		/* mutate output gene */
-		else {
-			nodeIndex = geneToMutate - numFunctionGenes - numInputGenes;
-
-			previousGeneValue = chromo->outputNodes[nodeIndex];
-
-			chromo->outputNodes[nodeIndex] = getRandomChromosomeOutput(chromo->numInputs, chromo->numNodes);
-
-			newGeneValue = chromo->outputNodes[nodeIndex];
-
-			if (previousGeneValue != newGeneValue) {
-				mutatedActive = 1;
-			}
-		}
-	}
-}
 
 
 /* -------------------------------------------------- */
@@ -461,56 +373,6 @@ double calculateFitness(struct chromosome *chromo, struct dataset *data) {
 	chromo->fitness = error;
 	return error;
 }
-
-
-/* -------------------------------------------------- */
-
-
-struct chromosome *executeCGP(struct parameters *params, struct dataset *data, int numGens) {
-
-	struct chromosome *chromo, *best;
-
-	int i, j;
-	int popSize = 5;
-
-	/* creates popSize chromosomes and stores the best one */
-	printf("Population\n");
-
-	best = createChromosome(params);
-	calculateFitness(best, data);
-
-	for(i = 0; i < popSize-1; i++) {
-		chromo = createChromosome(params);
-		calculateFitness(chromo, data);
-		if(chromo->fitness < best->fitness) {
-			copyChromosome(best, chromo);
-		} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
-			copyChromosome(best, chromo);
-		}
-		/* if isn't the last iteration, free it */
-		if (i < popSize-2) freeChromosome(chromo);
-	}
-
-	for(i = 0; i < numGens; i++) {
-		for(j = 0; j < popSize-1; j++) {
-			/* copies the best to mutate */
-			copyChromosome(chromo, best);
-			/* applies the mutation */
-			singleMutation(chromo, params);
-			calculateFitness(chromo, data);
-			/* if a mutated chromosome is better than best, save it */
-			if(chromo->fitness < best->fitness) {
-				copyChromosome(best, chromo);
-			} else if(chromo->fitness == best->fitness && chromo->numActiveNodes <= best->numActiveNodes) {
-				copyChromosome(best, chromo);
-			}
-		}
-	}
-	freeChromosome(chromo);
-
-	return best;
-}
-
 
 /* -------------------------------------------------- */
 
@@ -635,7 +497,7 @@ __global__ void CUDAcalculateChromosomeOutputs(int *solution, double *inputs, do
 
 	if (sample < numSamples) {
 		int i;
-
+		
 		double nodeOutputs[NUMNODES];
 
 		for(i = 0; i < 9; i++) {
