@@ -4,22 +4,20 @@ CUC = nvcc
 FLAGS = -lm
 GPUFLAGS = -Wno-deprecated-gpu-targets
 
-all: src/cgp.c src/cgp.h src/main.c
+all:
 	$(CC) src/cgp.c src/main.c -o main $(FLAGS)
 
-run: src/cgp.c src/cgp.h src/main.c
+run:
 	$(CC) src/cgp.c src/main.c -o main $(FLAGS)
 	./main
 
-test: src/cgp.c src/cgp.h tests/test1.c tests/test2.c 
-	$(CC) src/cgp.c tests/test1.c -o test1
-	$(CC) src/cgp.c tests/test2.c -o test2
-	./test1
-	./test2
-
-gpu: cuda/cgp.cu cuda/cgp.cuh cuda/main.cu
+gpu:
 	$(CUC) cuda/cgp.cu cuda/main.cu -o gmain $(GPUFLAGS)
 	./gmain
 
+test:
+	$(CC)  cpu/cgp.c tests/cpu_teste.c -o cpu_test $(FLAGS)
+	$(CUC) cuda/cgp.cu tests/gpu_teste.cu -o gpu_test $(GPUFLAGS)
+
 clean:
-	rm -f main
+	rm ./*.exe
