@@ -7,8 +7,8 @@
 *.o
 main
 gmain
-test1
-test2
+cpu_test
+gpu_test
 
 # Folders
 datasets/generate.py
