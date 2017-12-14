@@ -23,28 +23,19 @@ int main(int argc, char *argv[]) {
 	struct parameters *params;
 	struct chromosome *chromo;
 
-	if (argc > 1) strcpy(dataset_file, argv[1]);
-	else exit(0);
+	//if (argc > 1) strcpy(dataset_file, argv[1]);
+	//else exit(0);
 
-	data = loadDataset(dataset_file);
+	//data = loadDataset(dataset_file);
 
-	params = initialiseParameters(NUMNODES, MAXARITY, NUMFUNCTIONS, data);
+	//params = initialiseParameters(NUMNODES, MAXARITY, NUMFUNCTIONS, data);
 
-	time_t start, end;
-	double interval;
+	printf("Heyyy\n");
+	test(_add);
 
-	int i;
-	for(i = 0; i < RUNS; i++) {
-		start = clock();
-		chromo = executeCGP(params, data, POPSIZE, MAXGENS);
-		end = clock();
-		interval = (double) (end - start) / CLOCKS_PER_SEC;
-		printf("%f\n", interval);
-	}
-
-	freeChromosome(chromo);
-	freeDataset(data);
-	free(params);
+	//freeChromosome(chromo);
+	//freeDataset(data);
+	//free(params);
 
 	return 0;
 }

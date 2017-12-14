@@ -107,6 +107,14 @@ struct chromosome *createChromosome(struct parameters *params) {
 	/* set the fitness to initial value */
 	chromo->fitness = -1;
 
+	/* copies the function set */
+	chromo->functions = (struct functionset*)malloc(sizeof(struct functionset));
+	//copy
+	chromo->functions[0] = _add;
+	chromo->functions[1] = _sub;
+	chromo->functions[2] = _mul;
+	chromo->functions[3] = _div;
+
 	/* set the active nodes in the newly generated chromosome */
 	setChromosomeActiveNodes(chromo);
 
@@ -623,6 +631,69 @@ void printParameters(struct parameters *params) {
 	printf("Nodes: %d\n", params->numNodes);
 	printf("Max Arity: %d\n", params->arity);
 	printf("Functions: %d\n", params->numFunctions);
+}
+
+
+/* -------------------------------------------------- */
+
+
+double _add(int numInputs, double *inputs) {
+
+	int i;
+	double sum = inputs[0];
+
+	for (i = 1; i < numInputs; i++) {
+		sum += inputs[i];
+	}
+
+	return sum;
+}
+
+
+double _sub(int numInputs, double *inputs) {
+
+	int i;
+	double sum = inputs[0];
+
+	for (i = 1; i < numInputs; i++) {
+		sum -= inputs[i];
+	}
+
+	return sum;
+}
+
+
+double _mul(int numInputs, double *inputs) {
+
+	int i;
+	double sum = inputs[0];
+
+	for (i = 1; i < numInputs; i++) {
+		sum *= inputs[i];
+	}
+
+	return sum;
+}
+
+
+double _div(int numInputs, double *inputs) {
+
+	int i;
+	double sum = inputs[0];
+
+	for (i = 1; i < numInputs; i++) {
+		sum /= inputs[i];
+	}
+
+	return sum;
+}
+
+
+void test(double (*func)(int p1, double *p2)) {
+	int numInputs = 2;
+	double inputs[] = {2.5, 2.5};
+	double s = func(numInputs, inputs);
+	printf("TEST: %f\n", s);
 }
 
 #endif
