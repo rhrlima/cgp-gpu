@@ -108,12 +108,13 @@ struct chromosome *createChromosome(struct parameters *params) {
 	chromo->fitness = -1;
 
 	/* copies the function set */
-	chromo->functions = (struct functionset*)malloc(sizeof(struct functionset));
+	chromo->funcSet = (struct functionset*)malloc(sizeof(struct functionset));
 	//copy
-	chromo->functions[0] = _add;
-	chromo->functions[1] = _sub;
-	chromo->functions[2] = _mul;
-	chromo->functions[3] = _div;
+	chromo->funcSet->numFunctions = 4;
+	chromo->funcSet->functions[0] = _add;
+	chromo->funcSet->functions[1] = _sub;
+	chromo->funcSet->functions[2] = _mul;
+	chromo->funcSet->functions[3] = _div;
 
 	/* set the active nodes in the newly generated chromosome */
 	setChromosomeActiveNodes(chromo);
@@ -426,21 +427,22 @@ void executeChromosome(struct chromosome *chromo, double *inputs) {
 
 			/* calculate the output of the active node under evaluation */
 			//melhorar depois
-			double output = 0.0;
-			switch(currentActiveNodeFuction) {
-				case ADD:
-					output = chromo->nodeInputsHold[0] + chromo->nodeInputsHold[1];
-					break;
-				case SUB:
-					output = chromo->nodeInputsHold[0] - chromo->nodeInputsHold[1];
-					break;
-				case MUL:
-					output = chromo->nodeInputsHold[0] * chromo->nodeInputsHold[1];
-					break;
-				case DIV:
-					output = chromo->nodeInputsHold[0] / chromo->nodeInputsHold[1];
-					break;
-			}
+			// double output = 0.0;
+			// switch(currentActiveNodeFuction) {
+			// 	case ADD:
+			// 		output = chromo->nodeInputsHold[0] + chromo->nodeInputsHold[1];
+			// 		break;
+			// 	case SUB:
+			// 		output = chromo->nodeInputsHold[0] - chromo->nodeInputsHold[1];
+			// 		break;
+			// 	case MUL:
+			// 		output = chromo->nodeInputsHold[0] * chromo->nodeInputsHold[1];
+			// 		break;
+			// 	case DIV:
+			// 		output = chromo->nodeInputsHold[0] / chromo->nodeInputsHold[1];
+			// 		break;
+			// }
+			double output = chromo->funcSet->functions[currentActiveNodeFuction](nodeArity, chromo->nodeInputsHold);
 
 			if (isnan(output) != 0) output = 0;
 			else if (isinf(output) != 0) output = (output > 0) ? DBL_MAX : DBL_MIN;
@@ -458,7 +460,6 @@ void executeChromosome(struct chromosome *chromo, double *inputs) {
 		else {
 			chromo->outputValues[i] = chromo->nodes[chromo->outputNodes[i] - numInputs]->output;
 		}
-		//printf("output: %.2f\n", chromo->outputValues[i]);
 	}
 }
 
@@ -631,6 +632,13 @@ void printParameters(struct parameters *params) {
 	printf("Nodes: %d\n", params->numNodes);
 	printf("Max Arity: %d\n", params->arity);
 	printf("Functions: %d\n", params->numFunctions);
+}
+
+
+struct functionset *setFunctions(char *functions) {
+	char buffer[100];
+
+	buffer = strtok(buffer, ",");
 }
 
 

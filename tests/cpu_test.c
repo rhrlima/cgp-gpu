@@ -23,19 +23,31 @@ int main(int argc, char *argv[]) {
 	struct parameters *params;
 	struct chromosome *chromo;
 
-	//if (argc > 1) strcpy(dataset_file, argv[1]);
-	//else exit(0);
+	if (argc > 1) strcpy(dataset_file, argv[1]);
+	else {
+		printf("No dataset specified.\nExiting.\n");
+		exit(0);
+	}
 
-	//data = loadDataset(dataset_file);
+	data = loadDataset(dataset_file);
 
-	//params = initialiseParameters(NUMNODES, MAXARITY, NUMFUNCTIONS, data);
+	params = initialiseParameters(NUMNODES, MAXARITY, NUMFUNCTIONS, data);
 
-	printf("Heyyy\n");
-	test(_add);
+	// chromo = createChromosome(params);
+	// calculateFitness(chromo, data);
+	// printChromosome(chromo);
 
-	//freeChromosome(chromo);
-	//freeDataset(data);
-	//free(params);
+	chromo = executeCGP(params, data, 10, 1000);
+	printChromosome(chromo);
+
+	int sol[] = {2, 0, 0, 3, 1, 0, 1, 0, 0, 0, 0, 2, 0, 1, 4, 0, 4, 1, 2, 3, 1, 3, 5, 6, 2, 5, 4, 6};
+	struct chromosome *chromo2 = createChromosomeFromArray(params, sol);
+	calculateFitness(chromo2, data);
+	printChromosome(chromo2);
+
+	freeChromosome(chromo);
+	freeDataset(data);
+	free(params);
 
 	return 0;
 }

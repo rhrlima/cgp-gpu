@@ -5,6 +5,8 @@
 #include <math.h>
 #include <float.h>
 
+#define FUNCTIONSETSIZE 4
+
 struct node {
 	int function;
 	int *inputs;
@@ -25,7 +27,7 @@ struct chromosome {
 	int *activeNodes;
 	double fitness;
 	double *outputValues;
-	struct functionset *functions;
+	struct functionset *funcSet;
 	double *nodeInputsHold;
 };
 
@@ -93,9 +95,8 @@ struct parameters *initialiseParameters(int numNodes, int arity, int numFunction
 void printParameters(struct parameters *params);
 
 
+/* functions */
 double _add(int numInputs, double *inputs);
 double _sub(int numInputs, double *inputs);
 double _mul(int numInputs, double *inputs);
 double _div(int numInputs, double *inputs);
-
-void test(double (*func)(int p1, double *p2));
